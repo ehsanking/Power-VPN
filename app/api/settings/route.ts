@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { parseBody, settingsUpdateSchema } from '@/lib/validation';
+import { auditLog } from '@/lib/audit';
 
 export async function GET() {
   try {
@@ -28,6 +29,9 @@ export async function POST(req: Request) {
       )
     );
     await Promise.all(promises);
+    await auditLog('settings.update', 'Admin updated panel settings', {
+      keys: Object.keys(parsed.data),
+    });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

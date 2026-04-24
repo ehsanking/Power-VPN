@@ -71,6 +71,12 @@ const ALLOWED_SETTING_KEYS = new Set([
   'caCert',
   'caKey',
   'tlsAuthKey',
+  // Keys used by the settings UI
+  'publicIp',
+  'port',
+  'protocol',
+  'cipher',
+  'dnsServer',
 ]);
 
 export const settingsUpdateSchema = z

@@ -22,6 +22,7 @@ import DashboardView from '@/components/views/dashboard-view';
 import UsersView from '@/components/views/users-view';
 import SessionsView from '@/components/views/sessions-view';
 import SettingsView from '@/components/views/settings-view';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 type View = 'dashboard' | 'users' | 'sessions' | 'settings';
 
@@ -32,15 +33,37 @@ export default function Home() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [requires2fa, setRequires2fa] = useState(false);
   const [error, setError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = await login(username, password);
-    if (!success) {
-      setError('Invalid credentials. Check your .env setup.');
+
+    // Build payload — include totpCode when on 2FA step
+    const payload: any = { username, password };
+    if (requires2fa) payload.totpCode = totpCode;
+
+    const res = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (data.requires2fa) {
+      setRequires2fa(true);
+      return;
     }
+
+    if (!res.ok || !data.success) {
+      setError(data.error || 'Invalid credentials. Check your .env setup.');
+      return;
+    }
+
+    // Trigger auth-provider re-check
+    await login(username, password);
   };
 
   if (loading) {
@@ -91,15 +114,34 @@ export default function Home() {
               />
             </div>
 
+            {requires2fa && (
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                  کد ۲FA (Google Authenticator)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-1 focus:ring-orange-500 transition-all text-sm font-mono tracking-widest"
+                  autoFocus
+                  required
+                />
+              </div>
+            )}
+
             {error && (
                 <p className="text-[10px] font-bold text-red-500 text-center uppercase tracking-wide">{error}</p>
             )}
 
-            <button 
+            <button
                 type="submit"
                 className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-orange-600/20 active:scale-95 text-sm uppercase tracking-widest"
             >
-                Authorize Access
+                {requires2fa ? 'تأیید کد ۲FA' : 'Authorize Access'}
             </button>
           </form>
           
@@ -242,7 +284,8 @@ export default function Home() {
             </h2>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <NotificationBell />
             <div className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-[10px] font-bold uppercase tracking-widest border border-orange-100">
               Admin Node
             </div>

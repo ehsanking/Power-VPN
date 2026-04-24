@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { parseBody, serverCreateSchema } from '@/lib/validation';
+import { auditLog } from '@/lib/audit';
 
 export async function GET() {
   try {
@@ -24,6 +25,12 @@ export async function POST(req: Request) {
       [name, ip_address, domain ?? null, JSON.stringify(ports ?? [1194]), protocol ?? 'udp']
     );
 
+    await auditLog('server.create', `Added server "${name}" (${ip_address})`, {
+      name,
+      ip_address,
+      protocol: protocol ?? 'udp',
+    });
+
     return NextResponse.json({ id: result.insertId, success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -38,6 +45,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Valid ID required' }, { status: 400 });
     }
     await query('DELETE FROM vpn_servers WHERE id = ?', [Number(id)]);
+    await auditLog('server.delete', `Deleted server id=${id}`, { id: Number(id) });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

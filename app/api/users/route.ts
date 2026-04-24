@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { parseBody, bulkUserCreateSchema, userPatchSchema } from '@/lib/validation';
+import { auditLog } from '@/lib/audit';
 
 export async function GET() {
   try {
@@ -99,6 +100,10 @@ export async function POST(req: Request) {
           ]
         );
         results.push(username);
+        await auditLog('user.create', `Created user "${username}"`, {
+          role: role || 'user',
+          main_protocol: main_protocol || protocol || 'openvpn',
+        });
       } catch (insertError: any) {
         console.error('Failed to insert user', username, insertError.message);
       }
@@ -118,6 +123,7 @@ export async function PATCH(req: Request) {
 
     const { id, status } = parsed.data;
     await query('UPDATE vpn_users SET status = ? WHERE id = ?', [status, id]);
+    await auditLog('user.status_change', `User id=${id} status set to "${status}"`, { id, status });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -132,6 +138,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Valid ID required' }, { status: 400 });
     }
     await query('DELETE FROM vpn_users WHERE id = ?', [Number(id)]);
+    await auditLog('user.delete', `Deleted user id=${id}`, { id: Number(id) });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

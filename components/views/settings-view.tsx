@@ -26,6 +26,8 @@ interface ServerConfig {
 import { SettingField, MaintenanceButton } from '@/components/settings/settings-ui';
 import { ServerManagement } from '@/components/settings/server-management';
 import { BackupRestore } from '@/components/settings/backup-restore';
+import { TwoFactorSetup } from '@/components/settings/two-factor-setup';
+import { AuditLogView } from '@/components/settings/audit-log-view';
 
 export default function SettingsView() {
   const [config, setConfig] = useState<ServerConfig>({
@@ -142,6 +144,8 @@ export default function SettingsView() {
 
       <ServerManagement />
       <BackupRestore />
+      <TwoFactorSetup />
+      <AuditLogView />
 
       <form onSubmit={handleSave} className="space-y-8">
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

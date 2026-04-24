@@ -1,28 +1,13 @@
 import { NextResponse } from 'next/server';
-import pool, { query } from '@/lib/db';
+import { query } from '@/lib/db';
 
 export async function GET() {
   try {
-    // 1. Simulate data: update random servers with bandwidth/latency to make the dashboard look alive
-    await pool.query(`
-        UPDATE vpn_servers 
-        SET bandwidth_ingress = FLOOR(RAND() * 500), 
-            bandwidth_egress = FLOOR(RAND() * 500), 
-            latency_ms = FLOOR(RAND() * 100) + 10
-        WHERE is_active = TRUE
-    `);
-    
-    // Simulate history logging occasionally (10% chance)
-    if (Math.random() < 0.1) {
-        await pool.query(`
-            INSERT INTO server_status_history (server_id, status, load_score)
-            SELECT id, status, load_score FROM vpn_servers WHERE is_active = TRUE;
-        `);
-    }
-
-    // Fetch server info and join with active session counts
+    // Return real metrics collected by node agents.
+    // load_score is updated by agents via POST /api/agent/metrics.
+    // If no agent is running, metrics stay at their last known values.
     const servers = await query(`
-      SELECT 
+      SELECT
         s.id,
         s.name,
         s.ip_address,
@@ -36,6 +21,14 @@ export async function GET() {
       WHERE s.is_active = TRUE
       ORDER BY s.load_score ASC
     `);
+
+    // Occasionally snapshot to history (10% chance to limit write volume)
+    if (Math.random() < 0.1) {
+      await query(`
+        INSERT INTO server_status_history (server_id, status, load_score)
+        SELECT id, status, load_score FROM vpn_servers WHERE is_active = TRUE
+      `);
+    }
 
     return NextResponse.json(servers);
   } catch (error: any) {
