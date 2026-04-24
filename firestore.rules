@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // VPN Users
+    match /vpnUsers/{userId} {
+      allow read, list: if isEmailVerified() && isAdmin();
+      allow create: if isEmailVerified() && isAdmin() && isValidVpnUser(incoming());
+      allow update: if isEmailVerified() && isAdmin() && isValidVpnUser(incoming());
+      allow delete: if isEmailVerified() && isAdmin();
+    }
+
+    function isValidVpnUser(data) {
+      return data.username is string && data.username.size() > 0 && data.username.size() < 100
+          && data.status in ['active', 'suspended']
+          && data.createdAt is timestamp;
+    }
+
+    // Sessions
+    match /sessions/{sessionId} {
+      allow read, list: if isEmailVerified() && isAdmin();
+      allow create, update, delete: if isEmailVerified() && isAdmin();
+    }
+
+    // Settings
+    match /settings/config {
+      allow read: if isEmailVerified(); // Allow reading config for profile generation
+      allow write: if isEmailVerified() && isAdmin();
+    }
+    
+    // Admins collection (Bootstrap needed)
+    match /admins/{adminId} {
+      allow read: if isEmailVerified();
+      allow write: if false; // Only manageable through Firebase Console or backend
+    }
+  }
+}
