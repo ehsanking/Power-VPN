@@ -1,79 +1,112 @@
-# 🛡️ OpenVPN Panel (Control Plane)
-
-> **Enterprise-grade OpenVPN fleet management system.**
-
-This project is a high-performance Control Plane designed to manage multiple OpenVPN nodes, handle dynamic certificate issuance via Easy-RSA, and provide a secure, real-time dashboard for administrators.
-
----
-
-## 🏗 Architecture
-- **Control Plane**: Next.js 15, MySQL, JWT/Session Auth.
-- **Node Manager**: Shell scripts + Easy-RSA PKI architecture.
-- **Data Plane**: Optimized OpenVPN community nodes.
-- **Queue System**: Synchronous certificate processing with optional Redis/BullMQ migration paths.
-
----
-
-## 🔥 Features
-- **Multi-Node Support**: Manage dozens of VPN servers from one panel.
-- **Smart Routing**: Generates `.ovpn` files with multiple `remote` lines for high availability.
-- **Certificate Lifecycle**: Full issuing and CRL revocation system.
-- **Real-time Metrics**: Track traffic throughput and active session counts.
-- **Hardened Security**: Defaulting to `AES-256-GCM` with SHA256 auth.
+<div align="center">
+  <h1>🛡️ Ultimate Multi-Protocol VPN Manager</h1>
+  <p><b>Enterprise-grade fleet management system for OpenVPN, WireGuard, Cisco AnyConnect, and L2TP/IPsec.</b></p>
+  
+  <p>
+    <img src="https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js" alt="Next.js" />
+    <img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=flat-square&logo=typescript" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=flat-square&logo=tailwind-css" alt="Tailwind CSS" />
+    <img src="https://img.shields.io/badge/Database-PostgreSQL_|_SQLite-4169E1?style=flat-square&logo=postgresql" alt="PostgreSQL" />
+    <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License" />
+  </p>
+</div>
 
 ---
 
-## 🚀 One-Line Installation (Ubuntu 22.04)
+This project is a high-performance, modern Control Plane designed to manage dozens of VPN nodes, handle seamless certificate and key issuances, and provide a secure, real-time dashboard for administrators, resellers, and clients alike.
+
+## ✨ Core Features & Enhancements
+
+### 🚀 Modern Multi-Protocol Support
+Full integration, provisioning, and management for all major VPN protocols from a single dashboard:
+- **OpenVPN** (UDP/TCP)
+- **Cisco AnyConnect** (Ocserv)
+- **WireGuard** (wg1)
+- **L2TP/IPsec**
+
+### 🗄️ Database Scalability & Stability
+- Added robust core support for **PostgreSQL** alongside SQLite/MySQL schemas.
+- **Smart Migration Engine**: Instantly export/import configurations and users to safely migrate between node deployments without data loss.
+- **Concurrency Fixes**: Upgraded architectural lock mechanisms (`DB_WRITE_LOCK`) to eliminate deadlocks and database corruption under high traffic loads.
+- **Persistent Sessions**: Upgraded `SECRET_KEY` (JWT secret) storage for robust security preventing forced admin logouts after service restarts.
+
+### 👥 Advanced User Management
+- **Single & Bulk Provisioning**: Create standard or multiple users instantly using the bulk generation tool.
+- **Granular Quotas**: Set specific data limits (GB), maximum simultaneous connections (per protocol), and flexible expiration dates.
+- **Multi-Password Layers**: Define custom, unique passwords specific to L2TP and Cisco protocols for users along with global ones.
+- **Live Monitoring & State**: View real-time uploaded/downloaded bandwidth and instantly toggle account access capabilities (activate/deactivate).
+
+### 💼 Integrated Reseller (Sub-Admin) System
+- Easily create and categorize accounts with `Reseller` roles.
+- Allocate and strictly limit the max number of users they can create.
+- Bind overall traffic/data quotas on a per-reseller basis.
+- Sub-Admins get an isolated view to safely manage only their assigned users.
+
+### 🌍 Multi-Node Fleet Management
+- **Centralized Control**: Seamlessly orchestrate synchronization of users across multiple servers/nodes for all available protocols.
+- **Node Health Tracking**: Track load scores and the online/offline status of interconnected nodes.
+- **Protocol Discovery**: New nodes intelligently broadcast their supported protocol features allowing granular, conditional network routing.
+
+### 📱 Responsive Client Portal
+- **Subscriptions URL**: Every user features a unique login link to access their portal securely.
+- **Smart QR Codes**: Instantly scan to connect configurations for mobile clients utilizing QR technology.
+- **Quick Downloads**: Direct download links for `.ovpn` files and other required credentials.
+
+---
+
+## 🏗 Architecture & Stack 
+
+- **Frontend**: Next.js 15 App Router, React Server Components, Tailwind CSS, styled by Lucide Icons & Framer Motion.
+- **Backend / API**: Expressing RESTful structures inside Next.js API Routes, providing robust programmatic automation handling.
+- **Security**: Double-hashed `bcrypt` password protection and robust JWT session cookies over HTTP-only strict endpoints.
+
+---
+
+## 🚀 Installation & Deployment
+
+### Quick Environment Setup
+Configure your `.env` (or `.env.local`) based on the `.env.example`:
 
 ```bash
-git clone https://github.com/ehsanking/openvpn-panel.git && cd openvpn-panel && chmod +x install.sh && ./install.sh
+# Example Variables
+PORT=3000
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=root
+MYSQL_DATABASE=vpn
 ```
 
----
+### Initializing the System
 
-## 🔧 Environment Variables
-
-Configure your `.env` based on `.env.example`:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MYSQL_HOST` | Database host | `localhost` |
-| `ADMIN_USERNAME` | Admin login | `admin` |
-| `ADMIN_PASSWORD` | Admin password | `admin` |
-| `PORT` | Web service port | `3000` |
-
----
-
-## 🛠 Manual Deployment
-
-1. **Database Setup**:
+1. **Database Schema Injection**:
+   Run the schema builder against your database:
    ```bash
    mysql -u root -p < schema.sql
    ```
 
-2. **Initialize Cert Authority**:
-   ```bash
-   ./scripts/ovpn-manager.sh init
-   ```
-
-3. **Start Application**:
+2. **Run The Panel**:
    ```bash
    npm install
    npm run build
    npm start
    ```
 
+*(For production environments, utilizing PM2, Docker, or Google Cloud Run is heavily recommended).*
+
 ---
 
 ## 🤝 Community & Support
 - **Author**: [Ehsan](https://github.com/ehsanking)
+- **Contributions**: Pull requests, feature requests, and bug finding strongly encouraged!
 - **License**: MIT
 
 ---
 
-## 💖 Donate
-If you find this project useful and want to support its development, you can send a donation to the following Tether (USDT) address:
-- **Tether (TRC20 / ERC20)**: `TKPswLQqd2e73UTGJ5prxVXBVo7MTsWedU`
+## 💖 Support The Project
+If you find this scalable architecture and real-time dashboard useful, consider keeping the project maintained by donating via Tether (USDT):
+
+- **Network**: Tether (TRC20 / ERC20) 
+- **Address**: `TKPswLQqd2e73UTGJ5prxVXBVo7MTsWedU`
 
 ---
-*Optimized for privacy, security, and low-latency performance.*
+*Optimized for privacy, security, and low-latency performance worldwide.*
