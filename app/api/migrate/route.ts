@@ -37,6 +37,8 @@ export async function GET() {
         await pool.query('ALTER TABLE vpn_users ADD COLUMN l2tp_password VARCHAR(255) NULL;');
         await pool.query('ALTER TABLE vpn_users ADD COLUMN wg_pubkey VARCHAR(255) NULL;');
         await pool.query('ALTER TABLE vpn_users ADD COLUMN wg_ip VARCHAR(50) NULL;');
+        await pool.query('ALTER TABLE vpn_users ADD COLUMN xray_uuid VARCHAR(255) NULL;');
+        await pool.query('ALTER TABLE vpn_users ADD COLUMN xray_flow VARCHAR(255) NULL;');
     } catch(e: any) { console.log('user new columns mod fail: ', e.message); }
 
     try {
@@ -56,6 +58,7 @@ export async function GET() {
         await pool.query('ALTER TABLE vpn_servers ADD COLUMN supports_cisco BOOLEAN DEFAULT FALSE;');
         await pool.query('ALTER TABLE vpn_servers ADD COLUMN supports_l2tp BOOLEAN DEFAULT FALSE;');
         await pool.query('ALTER TABLE vpn_servers ADD COLUMN supports_wireguard BOOLEAN DEFAULT FALSE;');
+        await pool.query('ALTER TABLE vpn_servers ADD COLUMN supports_xray BOOLEAN DEFAULT FALSE;');
     } catch(e: any) { console.log('server features mod fail: ', e.message); }
 
     return NextResponse.json({ success: true });

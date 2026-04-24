@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS vpn_users (
     l2tp_password VARCHAR(255) NULL,
     wg_pubkey VARCHAR(255) NULL,
     wg_ip VARCHAR(50) NULL,
+    xray_uuid VARCHAR(255) NULL,
+    xray_flow VARCHAR(255) NULL,
     custom_config JSON, -- Store per-user config details (tcp/udp, keepalive)
     profile_data TEXT,
     FOREIGN KEY (parent_id) REFERENCES vpn_users(id) ON DELETE SET NULL
@@ -39,6 +41,7 @@ CREATE TABLE IF NOT EXISTS vpn_servers (
     supports_cisco BOOLEAN DEFAULT FALSE,
     supports_l2tp BOOLEAN DEFAULT FALSE,
     supports_wireguard BOOLEAN DEFAULT FALSE,
+    supports_xray BOOLEAN DEFAULT FALSE,
     load_score INT DEFAULT 0,
     status ENUM('online', 'offline') DEFAULT 'online',
     is_active BOOLEAN DEFAULT TRUE,

@@ -17,6 +17,7 @@ export interface VpnUser {
   cisco_password?: string;
   l2tp_password?: string;
   wg_pubkey?: string;
+  xray_uuid?: string;
 }
 
 interface UserTableProps {
@@ -83,6 +84,11 @@ export function UserTable({ users, downloading, onDownload, onToggleStatus, onDe
                         {user.wg_pubkey && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-red-100 text-red-700" title="WireGuard">
                             WG
+                          </span>
+                        )}
+                        {user.xray_uuid && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-pink-100 text-pink-700" title="Xray Core (VLESS/VMess/Trojan)">
+                            XR
                           </span>
                         )}
                       </div>

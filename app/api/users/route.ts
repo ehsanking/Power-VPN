@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export async function GET() {
   try {
@@ -49,7 +50,9 @@ export async function POST(req: Request) {
         role,
         cisco_password,
         l2tp_password,
-        max_connections
+        max_connections,
+        xray_uuid,
+        xray_flow
       } = userData;
       
       if (!username) continue;
@@ -58,13 +61,16 @@ export async function POST(req: Request) {
       if (password) {
         passwordHash = bcrypt.hashSync(password, 10);
       }
+      
+      // Auto-generate UUID if not provided so they are ready for Xray
+      const generatedXrayUuid = xray_uuid || crypto.randomUUID();
       const customConfig = JSON.stringify({ protocol: protocol || 'udp' });
 
       try {
         await query(
           `INSERT INTO vpn_users 
-            (username, password_hash, custom_config, expires_at, traffic_limit_gb, role, cisco_password, l2tp_password, max_connections) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+            (username, password_hash, custom_config, expires_at, traffic_limit_gb, role, cisco_password, l2tp_password, max_connections, xray_uuid, xray_flow) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
           [
             username, 
             passwordHash, 
@@ -74,7 +80,9 @@ export async function POST(req: Request) {
             role || 'user',
             cisco_password || null,
             l2tp_password || null,
-            max_connections || 1
+            max_connections || 1,
+            generatedXrayUuid,
+            xray_flow || ''
           ]
         );
         results.push(username);

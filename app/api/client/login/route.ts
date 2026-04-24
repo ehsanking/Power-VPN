@@ -21,15 +21,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    if (user.status !== 'active') {
-      return NextResponse.json({ error: 'Account is suspended or expired' }, { status: 403 });
-    }
-
     // Generate JWT
     const secret = await getJwtSecret();
     const token = jwt.sign({ id: user.id, username: user.username }, secret, { expiresIn: '1h' });
 
-    const res = NextResponse.json({ success: true, user: { username: user.username, traffic: user.traffic_total, limit: user.traffic_limit_gb } });
+    const res = NextResponse.json({ 
+      success: true, 
+      user: { 
+        username: user.username, 
+        traffic: user.traffic_total, 
+        limit: user.traffic_limit_gb,
+        status: user.status,
+        expires: user.expires_at,
+        cisco_password: user.cisco_password,
+        l2tp_password: user.l2tp_password,
+        wg_pubkey: user.wg_pubkey,
+        xray_uuid: user.xray_uuid,
+        xray_flow: user.xray_flow
+      } 
+    });
     res.cookies.set('client_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
