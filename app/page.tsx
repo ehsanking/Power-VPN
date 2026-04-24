@@ -28,37 +28,77 @@ export default function Home() {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const success = await login(username, password);
+    if (!success) {
+      setError('Invalid credentials. Check your .env setup.');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-950 text-white">
-        <div className="animate-pulse">Loading OpenVPN Panel...</div>
+      <div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">
+        <div className="animate-pulse font-bold tracking-widest uppercase text-xs">Initializing Secure Node...</div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 px-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 px-4 font-sans">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700"
+          className="w-full max-w-sm bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800"
         >
           <div className="flex justify-center mb-6">
-            <Shield className="w-16 h-16 text-blue-500" />
+            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-blue-500/20">O</div>
           </div>
-          <h1 className="text-3xl font-bold text-center text-white mb-2">OpenVPN Panel</h1>
-          <p className="text-slate-400 text-center mb-8">Secure management for your VPN fleet</p>
+          <h1 className="text-2xl font-bold text-center text-white mb-2 tracking-tight">OpenVPN Panel</h1>
+          <p className="text-slate-500 text-center text-xs mb-8 font-medium uppercase tracking-widest">Instance Management</p>
           
-          <button 
-            onClick={login}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95"
-          >
-            Sign in with Google
-          </button>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Username</label>
+              <input 
+                type="text" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-mono"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Password</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-mono"
+                required
+              />
+            </div>
+
+            {error && (
+                <p className="text-[10px] font-bold text-red-500 text-center uppercase tracking-wide">{error}</p>
+            )}
+
+            <button 
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-95 text-sm uppercase tracking-widest"
+            >
+                Authorize Access
+            </button>
+          </form>
           
-          <div className="mt-6 text-center text-xs text-slate-500">
-            Authorized administrators only.
+          <div className="mt-8 text-center text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">
+            Authorized Node Operators Only
           </div>
         </motion.div>
       </div>

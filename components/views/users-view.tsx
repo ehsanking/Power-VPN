@@ -154,18 +154,18 @@ export default function UsersView() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-xs font-semibold text-slate-400">
-                      {user.createdAt?.toDate ? user.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
                     </td>
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                             <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
                                 <div 
                                 className="h-full bg-blue-500" 
-                                style={{ width: `${Math.min((user.trafficTotal || 0) / 1000000, 100)}%` }} 
+                                style={{ width: `5%` }} 
                                 />
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400">
-                                {((user.trafficTotal || 0) / 1024 / 1024).toFixed(1)}M
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                Remote Node
                             </span>
                         </div>
                     </td>

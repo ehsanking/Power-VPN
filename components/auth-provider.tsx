@@ -1,15 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+
+interface User {
+    email: string;
+    displayName: string;
+    photoURL?: string;
+}
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  login: () => Promise<void>;
+  login: (username?: string, password?: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -17,7 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   loading: true,
-  login: async () => {},
+  login: async () => false,
   logout: async () => {},
 });
 
@@ -26,33 +29,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        // Check if user is admin
-        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-        setIsAdmin(adminDoc.exists());
-      } else {
-        setIsAdmin(false);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const login = async () => {
-    const provider = new GoogleAuthProvider();
+  const checkSession = async () => {
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed", error);
+      const res = await fetch('/api/auth/session');
+      const data = await res.json();
+      setUser(data.user);
+      setIsAdmin(data.isAdmin);
+    } catch (err) {
+      console.error("Session check failed", err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const login = async (username?: string, password?: string) => {
+    try {
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (res.ok) {
+        await checkSession();
+        return true;
+      }
+    } catch (error) {
+      console.error("Login failed", error);
+    }
+    return false;
+  };
+
   const logout = async () => {
-    await signOut(auth);
+    await fetch('/api/auth/session', { method: 'DELETE' });
+    setUser(null);
+    setIsAdmin(false);
   };
 
   return (
