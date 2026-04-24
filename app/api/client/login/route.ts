@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-dev';
+import { getJwtSecret } from '@/lib/auth-utils';
 
 export async function POST(req: Request) {
   try {
@@ -27,7 +26,8 @@ export async function POST(req: Request) {
     }
 
     // Generate JWT
-    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+    const secret = await getJwtSecret();
+    const token = jwt.sign({ id: user.id, username: user.username }, secret, { expiresIn: '1h' });
 
     const res = NextResponse.json({ success: true, user: { username: user.username, traffic: user.traffic_total, limit: user.traffic_limit_gb } });
     res.cookies.set('client_token', token, {

@@ -33,20 +33,57 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { username, password, protocol, expires_at, traffic_limit_gb } = await req.json();
-    if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
+    const body = await req.json();
     
-    let passwordHash = null;
-    if (password) {
-      passwordHash = bcrypt.hashSync(password, 10);
-    }
-    const customConfig = JSON.stringify({ protocol: protocol || 'udp' });
+    // Bulk create support
+    const usersToCreate = Array.isArray(body) ? body : [body];
+    const results = [];
+    
+    for (const userData of usersToCreate) {
+      const { 
+        username, 
+        password, 
+        protocol, 
+        expires_at, 
+        traffic_limit_gb,
+        role,
+        cisco_password,
+        l2tp_password,
+        max_connections
+      } = userData;
+      
+      if (!username) continue;
+      
+      let passwordHash = null;
+      if (password) {
+        passwordHash = bcrypt.hashSync(password, 10);
+      }
+      const customConfig = JSON.stringify({ protocol: protocol || 'udp' });
 
-    await query(
-      'INSERT INTO vpn_users (username, password_hash, custom_config, expires_at, traffic_limit_gb) VALUES (?, ?, ?, ?, ?)', 
-      [username, passwordHash, customConfig, expires_at || null, traffic_limit_gb || 10]
-    );
-    return NextResponse.json({ success: true });
+      try {
+        await query(
+          `INSERT INTO vpn_users 
+            (username, password_hash, custom_config, expires_at, traffic_limit_gb, role, cisco_password, l2tp_password, max_connections) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+          [
+            username, 
+            passwordHash, 
+            customConfig, 
+            expires_at || null, 
+            traffic_limit_gb || 10,
+            role || 'user',
+            cisco_password || null,
+            l2tp_password || null,
+            max_connections || 1
+          ]
+        );
+        results.push(username);
+      } catch (insertError: any) {
+        console.error("Failed to insert user", username, insertError.message);
+      }
+    }
+    
+    return NextResponse.json({ success: true, created: results.length });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

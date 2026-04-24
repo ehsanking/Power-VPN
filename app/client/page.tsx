@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Shield, Download, MapPin, Activity } from 'lucide-react';
+import { Shield, Download, MapPin, Activity, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function ClientPortal() {
   const [username, setUsername] = useState('');
@@ -62,6 +63,17 @@ export default function ClientPortal() {
                 </p>
               </div>
               <Activity className="text-slate-300" size={24} />
+            </div>
+
+            <div className="flex flex-col items-center bg-white border border-slate-100 p-6 rounded-xl shadow-sm">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><QrCode size={14}/> Mobile Quick Scan</p>
+                <QRCodeSVG 
+                    value={`vpn://connect?user=${user.username}`} 
+                    size={160} 
+                    level="H"
+                    includeMargin={true}
+                    className="border border-slate-100 rounded-xl"
+                />
             </div>
 
             <button 

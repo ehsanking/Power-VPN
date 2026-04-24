@@ -20,6 +20,11 @@ export default function UsersView() {
 
   const [servers, setServers] = useState<any[]>([]);
 
+  const [isBulk, setIsBulk] = useState(false);
+  const [ciscoPassword, setCiscoPassword] = useState('');
+  const [l2tpPassword, setL2tpPassword] = useState('');
+  const [maxConnections, setMaxConnections] = useState('1');
+
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
@@ -101,33 +106,55 @@ export default function UsersView() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedUsername = newUsername.trim();
-    if (!trimmedUsername) return;
+    if (!newUsername.trim()) return;
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + parseInt(expirationDays));
 
     try {
-      await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: trimmedUsername,
+      let payload;
+      if (isBulk) {
+        const usernames = newUsername.split('\n').map(u => u.trim()).filter(u => u);
+        payload = usernames.map(u => ({
+          username: u,
           password: password,
+          cisco_password: ciscoPassword,
+          l2tp_password: l2tpPassword,
+          max_connections: parseInt(maxConnections),
           protocol: protocol,
           expires_at: expiresAt.toISOString().slice(0, 19).replace('T', ' '),
           traffic_limit_gb: parseInt(trafficLimit)
-        })
+        }));
+      } else {
+        payload = { 
+          username: newUsername.trim(),
+          password: password,
+          cisco_password: ciscoPassword,
+          l2tp_password: l2tpPassword,
+          max_connections: parseInt(maxConnections),
+          protocol: protocol,
+          expires_at: expiresAt.toISOString().slice(0, 19).replace('T', ' '),
+          traffic_limit_gb: parseInt(trafficLimit)
+        };
+      }
+
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
       setNewUsername('');
       setPassword('');
+      setCiscoPassword('');
+      setL2tpPassword('');
+      setMaxConnections('1');
       setProtocol('udp');
       setExpirationDays('30');
       setTrafficLimit('10');
       setIsAddModalOpen(false);
       fetchUsers();
     } catch (error) {
-      console.error("Error adding user", error);
+      console.error("Error adding user/users:", error);
     }
   };
 
@@ -166,8 +193,16 @@ export default function UsersView() {
         onSubmit={handleAddUser}
         newUsername={newUsername}
         setNewUsername={setNewUsername}
+        isBulk={isBulk}
+        setIsBulk={setIsBulk}
         password={password}
         setPassword={setPassword}
+        ciscoPassword={ciscoPassword}
+        setCiscoPassword={setCiscoPassword}
+        l2tpPassword={l2tpPassword}
+        setL2tpPassword={setL2tpPassword}
+        maxConnections={maxConnections}
+        setMaxConnections={setMaxConnections}
         protocol={protocol}
         setProtocol={setProtocol}
         expirationDays={expirationDays}

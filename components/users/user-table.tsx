@@ -13,6 +13,10 @@ export interface VpnUser {
   last_connected?: string;
   traffic_total?: number;
   traffic_limit_gb?: number;
+  max_connections?: number;
+  cisco_password?: string;
+  l2tp_password?: string;
+  wg_pubkey?: string;
 }
 
 interface UserTableProps {
@@ -36,6 +40,7 @@ export function UserTable({ users, downloading, onDownload, onToggleStatus, onDe
               <tr className="bg-slate-50/30 border-b border-slate-100 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
               <th className="px-6 py-3">Login</th>
               <th className="px-6 py-3">Access</th>
+              <th className="px-6 py-3">Protocols & Limits</th>
               <th className="px-6 py-3">Expires On</th>
               <th className="px-6 py-3">Quota</th>
               <th className="px-6 py-3">Last Active</th>
@@ -58,6 +63,31 @@ export function UserTable({ users, downloading, onDownload, onToggleStatus, onDe
                     }`}>
                       {user.status === 'active' ? 'Enabled' : 'Disabled'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-orange-100 text-orange-700" title="OpenVPN">
+                          OVPN
+                        </span>
+                        {user.cisco_password && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-blue-100 text-blue-700" title="Cisco AnyConnect">
+                            CSC
+                          </span>
+                        )}
+                        {user.l2tp_password && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-purple-100 text-purple-700" title="L2TP/IPsec">
+                            L2TP
+                          </span>
+                        )}
+                        {user.wg_pubkey && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-red-100 text-red-700" title="WireGuard">
+                            WG
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-semibold">Max Connections: <strong className="text-slate-700">{user.max_connections || 1}</strong></span>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-xs font-semibold text-slate-400">
                     {user.expires_at ? new Date(user.expires_at).toLocaleDateString() : 'Never'}
@@ -118,7 +148,7 @@ export function UserTable({ users, downloading, onDownload, onToggleStatus, onDe
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-slate-300 text-xs font-bold uppercase tracking-widest">
+                <td colSpan={8} className="px-6 py-12 text-center text-slate-300 text-xs font-bold uppercase tracking-widest">
                   No users found
                 </td>
               </tr>

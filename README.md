@@ -70,4 +70,10 @@ Configure your `.env` based on `.env.example`:
 - **License**: MIT
 
 ---
+
+## 💖 Donate
+If you find this project useful and want to support its development, you can send a donation to the following Tether (USDT) address:
+- **Tether (TRC20 / ERC20)**: `TKPswLQqd2e73UTGJ5prxVXBVo7MTsWedU`
+
+---
 *Optimized for privacy, security, and low-latency performance.*

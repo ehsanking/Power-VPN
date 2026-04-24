@@ -2,14 +2,30 @@ CREATE TABLE IF NOT EXISTS vpn_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NULL, -- Added for client portal
+    role ENUM('admin', 'reseller', 'user') DEFAULT 'user',
+    parent_id INT NULL,
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NULL,
     last_connected TIMESTAMP NULL,
     traffic_total BIGINT DEFAULT 0,
     traffic_limit_gb INT DEFAULT 10,
+    max_connections INT DEFAULT 1,
+    cisco_password VARCHAR(255) NULL,
+    l2tp_password VARCHAR(255) NULL,
+    wg_pubkey VARCHAR(255) NULL,
+    wg_ip VARCHAR(50) NULL,
     custom_config JSON, -- Store per-user config details (tcp/udp, keepalive)
-    profile_data TEXT 
+    profile_data TEXT,
+    FOREIGN KEY (parent_id) REFERENCES vpn_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS reseller_limits (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reseller_id INT NOT NULL,
+    max_users INT DEFAULT 50,
+    allocated_traffic_gb INT DEFAULT 500,
+    FOREIGN KEY (reseller_id) REFERENCES vpn_users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS vpn_servers (
@@ -19,6 +35,10 @@ CREATE TABLE IF NOT EXISTS vpn_servers (
     domain VARCHAR(255),
     ports JSON, -- Array of ports [1194, 443, etc]
     protocol ENUM('udp', 'tcp') DEFAULT 'udp',
+    supports_openvpn BOOLEAN DEFAULT TRUE,
+    supports_cisco BOOLEAN DEFAULT FALSE,
+    supports_l2tp BOOLEAN DEFAULT FALSE,
+    supports_wireguard BOOLEAN DEFAULT FALSE,
     load_score INT DEFAULT 0,
     status ENUM('online', 'offline') DEFAULT 'online',
     is_active BOOLEAN DEFAULT TRUE,

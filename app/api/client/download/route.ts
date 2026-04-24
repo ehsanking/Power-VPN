@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-dev';
+import { getJwtSecret } from '@/lib/auth-utils';
 
 export async function GET(req: Request) {
   try {
@@ -14,7 +13,8 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL('/client', req.url));
     }
 
-    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const secret = await getJwtSecret();
+    const decoded: any = jwt.verify(token, secret);
     
     const users: any[] = await query('SELECT * FROM vpn_users WHERE id = ?', [decoded.id]);
     const user = users[0];
