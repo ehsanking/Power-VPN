@@ -3,19 +3,49 @@ CREATE TABLE IF NOT EXISTS vpn_users (
     username VARCHAR(255) NOT NULL UNIQUE,
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
     last_connected TIMESTAMP NULL,
-    profile_data TEXT -- Stores metadata or cached config
+    traffic_total BIGINT DEFAULT 0,
+    profile_data TEXT 
+);
+
+CREATE TABLE IF NOT EXISTS vpn_servers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    domain VARCHAR(255),
+    ports JSON, -- Array of ports [1194, 443, etc]
+    protocol ENUM('udp', 'tcp') DEFAULT 'udp',
+    load_score INT DEFAULT 0,
+    status ENUM('online', 'offline') DEFAULT 'online',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    level ENUM('info', 'warn', 'error') DEFAULT 'info',
+    message TEXT,
+    context JSON, -- Additional metadata
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
+    server_id INT,
     username VARCHAR(255),
     ip_address VARCHAR(45),
     start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP NULL,
     status ENUM('active', 'disconnected') DEFAULT 'active',
-    FOREIGN KEY (user_id) REFERENCES vpn_users(id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES vpn_users(id) ON DELETE SET NULL,
+    FOREIGN KEY (server_id) REFERENCES vpn_servers(id) ON DELETE SET NULL
 );
+
+-- Seed initial server
+INSERT IGNORE INTO vpn_servers (name, ip_address, ports, protocol) VALUES 
+('Node-01-Main', '45.12.99.1', '[1194, 443]', 'udp');
 
 CREATE TABLE IF NOT EXISTS settings (
     `key` VARCHAR(255) PRIMARY KEY,
@@ -24,8 +54,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Seed initial settings
 INSERT IGNORE INTO settings (`key`, `value`) VALUES 
-('publicIp', '45.12.99.1'),
-('port', '1194'),
-('protocol', 'udp'),
-('cipher', 'AES-256-GCM'),
-('dnsServer', '1.1.1.1');
+('panelName', 'OpenVPN Control Plane'),
+('defaultCipher', 'AES-256-GCM'),
+('defaultDns', '1.1.1.1'),
+('caCert', 'PENDING_CA_GENERATION');

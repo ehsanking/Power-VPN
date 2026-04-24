@@ -37,7 +37,14 @@ export default function SettingsView() {
 
   useEffect(() => {
     fetch('/api/settings')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Settings not found');
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return res.json();
+        }
+        throw new Error('Invalid response type');
+      })
       .then(data => {
         if (!data.error) {
             setConfig({
@@ -48,6 +55,11 @@ export default function SettingsView() {
                 dnsServer: data.dnsServer || '1.1.1.1'
             });
         }
+      })
+      .catch(err => {
+        console.error("Failed to load settings:", err);
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, []);

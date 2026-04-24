@@ -21,9 +21,17 @@ export default function UsersView() {
   const [downloading, setDownloading] = useState<string | null>(null);
 
   const fetchUsers = async () => {
-    const res = await fetch('/api/users');
-    const data = await res.json();
-    if (!data.error) setUsers(data);
+    try {
+      const res = await fetch('/api/users');
+      if (!res.ok) return;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!data.error) setUsers(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+    }
   };
 
   useEffect(() => {

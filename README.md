@@ -1,26 +1,29 @@
-# 🛡️ OpenVPN Panel
+# 🛡️ OpenVPN Panel (Control Plane)
 
-A production-grade, secure, and modern web-based control panel for managing OpenVPN servers, users, and sessions. Built with **Next.js**, **MySQL**, and **Tailwind CSS**.
+> **Enterprise-grade OpenVPN fleet management system.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub Star](https://img.shields.io/github/stars/ehsanking/openvpn-panel?style=social)](https://github.com/ehsanking/openvpn-panel)
-
----
-
-## ✨ Features
-
-- **Real-time Monitoring**: Track active VPN sessions, uptime, and node status.
-- **User Management**: Fast CRUD operations for VPN users with instant status toggling (Active/Suspended).
-- **Automated Configs**: One-click `.ovpn` profile generation with embedded certificates.
-- **MySQL Integration**: Reliable and scalable data storage for users, settings, and logs.
-- **Snapshot Sync**: Robust backup and restore system (JSON export/import) to move between nodes effortlessly.
-- **Security First**: Production-ready encryption ciphers and architectural hardening.
+This project is a high-performance Control Plane designed to manage multiple OpenVPN nodes, handle dynamic certificate issuance via Easy-RSA, and provide a secure, real-time dashboard for administrators.
 
 ---
 
-## 🚀 Quick Installation
+## 🏗 Architecture
+- **Control Plane**: Next.js 15, MySQL, JWT/Session Auth.
+- **Node Manager**: Shell scripts + Easy-RSA PKI architecture.
+- **Data Plane**: Optimized OpenVPN community nodes.
+- **Queue System**: Synchronous certificate processing with optional Redis/BullMQ migration paths.
 
-Run the following one-liner to clone, configure, and install all dependencies:
+---
+
+## 🔥 Features
+- **Multi-Node Support**: Manage dozens of VPN servers from one panel.
+- **Smart Routing**: Generates `.ovpn` files with multiple `remote` lines for high availability.
+- **Certificate Lifecycle**: Full issuing and CRL revocation system.
+- **Real-time Metrics**: Track traffic throughput and active session counts.
+- **Hardened Security**: Defaulting to `AES-256-GCM` with SHA256 auth.
+
+---
+
+## 🚀 One-Line Installation (Ubuntu 22.04)
 
 ```bash
 git clone https://github.com/ehsanking/openvpn-panel.git && cd openvpn-panel && chmod +x install.sh && ./install.sh
@@ -28,82 +31,43 @@ git clone https://github.com/ehsanking/openvpn-panel.git && cd openvpn-panel && 
 
 ---
 
-## ⚙️ Configuration
+## 🔧 Environment Variables
 
-The system uses a `.env` file for all critical configurations. Ensure the following values match your environment:
+Configure your `.env` based on `.env.example`:
 
-### Database Settings
-- `MYSQL_HOST`: Your database host (e.g., `localhost`)
-- `MYSQL_USER`: Database username
-- `MYSQL_PASSWORD`: Database password
-- `MYSQL_DATABASE`: Database name (e.g., `vpn_panel`)
-
-### Panel Access
-- `ADMIN_USERNAME`: Your login username (Default: `admin`)
-- `ADMIN_PASSWORD`: Your secret password
-- `PORT`: The web panel port (Default: `3000`)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MYSQL_HOST` | Database host | `localhost` |
+| `ADMIN_USERNAME` | Admin login | `admin` |
+| `ADMIN_PASSWORD` | Admin password | `admin` |
+| `PORT` | Web service port | `3000` |
 
 ---
 
-## 🛠 Manual Setup
+## 🛠 Manual Deployment
 
-If you prefer to install step-by-step:
+1. **Database Setup**:
+   ```bash
+   mysql -u root -p < schema.sql
+   ```
 
-1. **Install Dependencies**:
+2. **Initialize Cert Authority**:
+   ```bash
+   ./scripts/ovpn-manager.sh init
+   ```
+
+3. **Start Application**:
    ```bash
    npm install
-   ```
-
-2. **Initialize Database**:
-   Run the `schema.sql` script on your MySQL server to set up tables and default settings.
-
-3. **Environment Setup**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
-
-4. **Development Mode**:
-   ```bash
-   npm run dev
-   ```
-
-5. **Production Build**:
-   ```bash
    npm run build
    npm start
    ```
 
 ---
 
-## 📁 Project Architecture
-
-- **`/app/api`**: REST/Serverless endpoints for user management and database operations.
-- **`/components/views`**: Core dashboard logic and UI components.
-- **`/lib/db.ts`**: MySQL connection pool and query utility.
-- **`/lib/ovpn-generator.ts`**: Logic for constructing `.ovpn` files.
+## 🤝 Community & Support
+- **Author**: [Ehsan](https://github.com/ehsanking)
+- **License**: MIT
 
 ---
-
-## 🔒 Security Checklist
-
-- [ ] Change default `ADMIN_PASSWORD` in `.env`.
-- [ ] Ensure `MYSQL_PORT` is not exposed publicly.
-- [ ] Use `AES-256-GCM` for production encryption (configurable in Settings).
-- [ ] Run the panel behind a reverse proxy (Nginx) with SSL.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you find a bug or have a feature request, please open an issue or submit a pull request on [GitHub](https://github.com/ehsanking/openvpn-panel).
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-**Developed with ❤️ by [Ehsan](https://github.com/ehsanking)**
+*Optimized for privacy, security, and low-latency performance.*

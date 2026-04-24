@@ -11,7 +11,8 @@ import {
   Shield,
   Menu,
   X,
-  LayoutDashboard
+  LayoutDashboard,
+  Key
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -58,7 +59,9 @@ export default function Home() {
           className="w-full max-w-sm bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800"
         >
           <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-blue-500/20">O</div>
+            <div className="w-16 h-16 bg-orange-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-orange-500/20">
+              <Key size={32} />
+            </div>
           </div>
           <h1 className="text-2xl font-bold text-center text-white mb-2 tracking-tight">OpenVPN Panel</h1>
           <p className="text-slate-500 text-center text-xs mb-8 font-medium uppercase tracking-widest">Instance Management</p>
@@ -70,7 +73,7 @@ export default function Home() {
                 type="text" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-mono"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-1 focus:ring-orange-500 transition-all text-sm font-mono"
                 required
               />
             </div>
@@ -80,7 +83,7 @@ export default function Home() {
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-mono"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:ring-1 focus:ring-orange-500 transition-all text-sm font-mono"
                 required
               />
             </div>
@@ -91,7 +94,7 @@ export default function Home() {
 
             <button 
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-95 text-sm uppercase tracking-widest"
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-orange-600/20 active:scale-95 text-sm uppercase tracking-widest"
             >
                 Authorize Access
             </button>
@@ -133,7 +136,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-orange-100">
       {/* Mobile Backdrop */}
       <AnimatePresence>
         {!sidebarOpen && (
@@ -154,7 +157,9 @@ export default function Home() {
         className="fixed lg:relative z-50 bg-white border-r border-slate-200 h-screen overflow-hidden shrink-0 flex flex-col"
       >
         <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-lg">O</div>
+          <div className="w-8 h-8 bg-orange-600 rounded flex items-center justify-center text-white">
+            <Key size={18} />
+          </div>
           <span className="text-lg font-semibold tracking-tight text-slate-900 truncate">OpenVPN Panel</span>
         </div>
 
@@ -168,11 +173,11 @@ export default function Home() {
                 onClick={() => setActiveView(item.id as View)}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium ${
                   isActive 
-                    ? 'bg-slate-100 text-blue-600' 
+                    ? 'bg-slate-100 text-orange-600' 
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <Icon size={18} className={isActive ? 'text-blue-600' : 'text-slate-400'} />
+                <Icon size={18} className={isActive ? 'text-orange-600' : 'text-slate-400'} />
                 <span>{item.label}</span>
               </button>
             );
@@ -233,7 +238,7 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold uppercase tracking-widest border border-blue-100">
+            <div className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-[10px] font-bold uppercase tracking-widest border border-orange-100">
               Admin Node
             </div>
           </div>

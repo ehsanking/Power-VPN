@@ -38,10 +38,22 @@ export default function SessionsView() {
   );
 
   const fetchSessions = async () => {
-    const res = await fetch('/api/sessions');
-    const data = await res.json();
-    if (!data.error) setSessions(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/sessions');
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!data.error) setSessions(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch sessions:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

@@ -12,10 +12,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { username } = await req.json();
+    const { username, expires_at } = await req.json();
     if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
     
-    await query('INSERT INTO vpn_users (username) VALUES (?)', [username]);
+    await query('INSERT INTO vpn_users (username, expires_at) VALUES (?, ?)', [username, expires_at || null]);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

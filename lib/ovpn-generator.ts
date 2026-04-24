@@ -1,51 +1,39 @@
-export async function generateOvpnProfile(username: string): Promise<string> {
-  // Fetch current server config from SQL API
-  const res = await fetch('/api/settings');
-  const data = await res.json();
-  const config = data.error ? {
-    publicIp: '45.12.99.1',
-    port: 1194,
-    protocol: 'udp',
+export async function generateOvpnProfile(username: string, servers: any[] = []): Promise<string> {
+  // Config defaults
+  const defaults = {
     cipher: 'AES-256-GCM',
-    dnsServer: '1.1.1.1'
-  } : data;
+    auth: 'SHA256',
+    protocol: 'udp'
+  };
 
-  const ca = `-----BEGIN CERTIFICATE-----
-MIIB9TCCAV+gAwIBAgIJAJ8aZzqYyY6TMA0GCSqGSIb3DQEBCwUAMBAxDjAMBgNV
-BAMMBUNBLUFSMCAXDTI0MDUwODEwMDcwM1onGA8yMTI0MDQxNDEwMDcwM1owEDEO
-MAwGA1UEAwwFQ0EtQVIwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAK7r8X/R
-... (REDACTED CA) ...
------END CERTIFICATE-----`;
+  const remoteLines = servers.length > 0 
+    ? servers.map(s => {
+        const ports = Array.isArray(s.ports) ? s.ports : JSON.parse(s.ports || '[1194]');
+        return ports.map((p: number) => `remote ${s.ip_address} ${p}`).join('\n');
+      }).join('\n')
+    : `remote 45.12.99.1 1194`;
 
-  const cert = `-----BEGIN CERTIFICATE-----
-MIIB9TCCAV+gAwIBAgIJAJ8aZzqYyY6TMA0GCSqGSIb3DQEBCwUAMBAxDjAMBgNV
-BAMMBUNBLUFSMCAXDTI0MDUwODEwMDcwM1onGA8yMTI0MDQxNDEwMDcwM1owEDEO
-MAwGA1UEAwwFQ0EtQVIwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAK7r8X/R
-... (REDACTED CERT FOR ${username}) ...
------END CERTIFICATE-----`;
-
-  const key = `-----BEGIN PRIVATE KEY-----
-MIICXAIBAAKBgQCu6/F/0N... (REDACTED PRIVATE KEY FOR ${username}) ...
------END PRIVATE KEY-----`;
-
-  const tlsAuth = `-----BEGIN OpenVPN Static key V1-----
-e8c8a8d8... (REDACTED TLS-AUTH) ...
------END OpenVPN Static key V1-----`;
+  // Placeholder certs - In production, these should be fetched from the secure Cert Service
+  const ca = `-----BEGIN CERTIFICATE-----\nCA_CERT_HERE\n-----END CERTIFICATE-----`;
+  const cert = `-----BEGIN CERTIFICATE-----\nCLIENT_CERT_FOR_${username.toUpperCase()}\n-----END CERTIFICATE-----`;
+  const key = `-----BEGIN PRIVATE KEY-----\nCLIENT_KEY_FOR_${username.toUpperCase()}\n-----END PRIVATE KEY-----`;
+  const tlsAuth = `-----BEGIN OpenVPN Static key V1-----\nTLS_AUTH_KEY\n-----END OpenVPN Static key V1-----`;
 
   return `client
 dev tun
-proto ${config.protocol || 'udp'}
-remote ${config.publicIp || '45.12.99.1'} ${config.port || 1194}
+proto ${defaults.protocol}
+${remoteLines}
 resolv-retry infinite
 nobind
 persist-key
 persist-tun
 remote-cert-tls server
-auth SHA256
-cipher ${config.cipher || 'AES-256-GCM'}
-setenv opt block-outside-dns
+auth ${defaults.auth}
+cipher ${defaults.cipher}
 key-direction 1
 verb 3
+connect-retry 1
+connect-timeout 5
 
 <ca>
 ${ca}

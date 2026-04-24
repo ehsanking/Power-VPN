@@ -32,18 +32,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkSession = async () => {
     try {
       const res = await fetch('/api/auth/session');
-      const data = await res.json();
-      setUser(data.user);
-      setIsAdmin(data.isAdmin);
+      if (!res.ok) throw new Error('Session request failed');
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        setUser(data.user);
+        setIsAdmin(data.isAdmin);
+      } else {
+        throw new Error('Non-JSON response received');
+      }
     } catch (err) {
       console.error("Session check failed", err);
+      setUser(null);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    checkSession();
+    const init = async () => {
+      await checkSession();
+    };
+    init();
   }, []);
 
   const login = async (username?: string, password?: string) => {
@@ -55,8 +66,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (res.ok) {
-        await checkSession();
-        return true;
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          await checkSession();
+          return true;
+        }
       }
     } catch (error) {
       console.error("Login failed", error);
