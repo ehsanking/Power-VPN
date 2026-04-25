@@ -3,26 +3,31 @@ services:
     build: .
     ports:
       - "3000:3000"
-    environment:
-      - MYSQL_HOST=db
-      - MYSQL_USER=vpn_user
-      - MYSQL_PASSWORD=vpn_password
-      - MYSQL_DATABASE=vpn_db
-      - MYSQL_PORT=3306
+    env_file: .env
     depends_on:
-      - db
-  
+      db:
+        condition: service_healthy
+    # Defect 48: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 128M
+
   db:
     image: mysql:8.0
-    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: vpn_db
-      MYSQL_USER: vpn_user
-      MYSQL_PASSWORD: vpn_password
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
-
-volumes:
-  db_data:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-vpn_panel}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1024M

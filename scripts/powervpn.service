@@ -1,18 +1,32 @@
 [Unit]
-Description=PowerVPN Service
+Description=PowerVPN Management Panel
 After=network.target mysql.service
 
 [Service]
-Type=simple
-User=root
+# User and Group
+User=vpnpanel
+Group=vpnpanel
 WorkingDirectory=/opt/powervpn
+
+# Execution
 ExecStart=/usr/bin/npm start
-Restart=always
-Environment=NODE_ENV=production
-Environment=MYSQL_HOST=localhost
-Environment=MYSQL_USER=vpn_user
-Environment=MYSQL_PASSWORD=your_password
-Environment=MYSQL_DATABASE=vpn_db
+Restart=on-failure
+RestartSec=5
+
+# Defect 47: Hardening
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+ReadOnlyPaths=/
+ReadWritePaths=/opt/powervpn/.next /opt/powervpn/logs
+CapabilityBoundingSet=
+RestrictRealtime=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+
+# Limits
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
