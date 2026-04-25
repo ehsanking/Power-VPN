@@ -37,52 +37,82 @@ require_root() {
 }
 
 generate_password() {
-    LC_ALL=C tr -dc 'A-Za-z0-9!@#%^&*_+' < /dev/urandom | head -c 20
+    # `head` closes the pipe after reading 20 bytes which sends SIGPIPE to
+    # `tr`; under `set -o pipefail` that becomes exit 141 and `set -e` would
+    # abort the script. `|| true` neutralises the failed-pipe status while
+    # the captured stdout (the password itself) is unaffected.
+    LC_ALL=C tr -dc 'A-Za-z0-9!@#%^&*_+' < /dev/urandom 2>/dev/null | head -c 20 || true
 }
 
 generate_secret() {
-    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 48
+    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom 2>/dev/null | head -c 48 || true
+}
+
+# Find an unused TCP port for the internal Next.js backend.
+find_free_port() {
+    local port="${1:-3001}"
+    while :; do
+        if ! ss -tln 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}$" \
+           && [[ "$port" != "${PANEL_PORT:-}" ]]; then
+            echo "$port"; return 0
+        fi
+        port=$((port + 1))
+    done
 }
 
 # ── Collect admin credentials ─────────────────────────────────────────────────
+# All prompts use `read -er` so readline handles backspace correctly and
+# does not eat the prompt text when the user erases past column 0.
 collect_credentials() {
     echo -e "\n${CYAN}====== Power VPN Panel Installer ======${NC}\n"
 
     while true; do
-        read -rp "Enter Admin Username (min 5 chars): " ADMIN_USER
+        read -erp "Enter Admin Username (min 5 chars): " ADMIN_USER
         [[ ${#ADMIN_USER} -ge 5 ]] && break
         warn "Username must be at least 5 characters."
     done
 
-    read -s -rp "Enter Admin Password (leave blank for random): " ADMIN_PASS
-    echo
+    # Password is shown while typing on purpose (user requested visibility).
+    read -erp "Enter Admin Password (leave blank for random): " ADMIN_PASS
     if [[ -z "$ADMIN_PASS" ]]; then
         ADMIN_PASS=$(generate_password)
         echo -e "  Generated password: ${YELLOW}${ADMIN_PASS}${NC}"
+    else
+        echo -e "  Password set: ${YELLOW}${ADMIN_PASS}${NC}"
     fi
 
-    read -rp "Enter Panel Port (default 3000): " PANEL_PORT
+    read -erp "Enter Panel Port (default 3000): " PANEL_PORT
     PANEL_PORT=${PANEL_PORT:-3000}
     [[ "$PANEL_PORT" =~ ^[0-9]+$ ]] || PANEL_PORT=3000
 
     DOMAIN=""
     LE_EMAIL=""
-    read -rp "Use a domain with HTTPS (Let's Encrypt)? [y/N]: " USE_DOMAIN
+    read -erp "Use a domain with HTTPS (Let's Encrypt)? [y/N]: " USE_DOMAIN
     if [[ "${USE_DOMAIN,,}" == "y" || "${USE_DOMAIN,,}" == "yes" ]]; then
         while true; do
-            read -rp "Enter your domain (e.g. panel.example.com): " DOMAIN
+            read -erp "Enter your domain (e.g. panel.example.com): " DOMAIN
             if [[ "$DOMAIN" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]]; then
                 break
             fi
             warn "Invalid domain format. Try again."
         done
         while true; do
-            read -rp "Enter email for Let's Encrypt notifications: " LE_EMAIL
+            read -erp "Enter email for Let's Encrypt notifications: " LE_EMAIL
             if [[ "$LE_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
                 break
             fi
             warn "Invalid email. Try again."
         done
+    fi
+
+    # When a domain is set, nginx serves HTTPS on the user-chosen PANEL_PORT
+    # and Next.js binds to a separate internal port (loopback only).
+    if [[ -n "$DOMAIN" ]]; then
+        BACKEND_PORT=$(find_free_port 3001)
+        BIND_HOST="127.0.0.1"
+    else
+        BACKEND_PORT="$PANEL_PORT"
+        BIND_HOST="0.0.0.0"
     fi
 }
 
@@ -93,10 +123,10 @@ install_dependencies() {
 
     info "Installing system packages…"
     apt-get install -y -qq \
-        curl git ca-certificates gnupg lsb-release \
+        curl git ca-certificates gnupg lsb-release iproute2 \
         mysql-server openssl ufw 2>/dev/null || \
     apt-get install -y -qq \
-        curl git ca-certificates gnupg \
+        curl git ca-certificates gnupg iproute2 \
         mariadb-server openssl ufw
 
     # Node.js via NodeSource
@@ -240,9 +270,14 @@ write_env() {
     MIGRATION_TOKEN=$(generate_secret)
 
     if [[ -n "$DOMAIN" ]]; then
-        ALLOWED_ORIGINS="https://${DOMAIN},http://localhost:${PANEL_PORT}"
+        if [[ "$PANEL_PORT" == "443" ]]; then
+            PUBLIC_URL="https://${DOMAIN}"
+        else
+            PUBLIC_URL="https://${DOMAIN}:${PANEL_PORT}"
+        fi
+        ALLOWED_ORIGINS="${PUBLIC_URL},http://localhost:${BACKEND_PORT}"
     else
-        ALLOWED_ORIGINS="http://localhost:${PANEL_PORT}"
+        ALLOWED_ORIGINS="http://localhost:${BACKEND_PORT}"
     fi
 
     cat > "$INSTALL_DIR/.env" <<ENV
@@ -254,7 +289,8 @@ ADMIN_USERNAME=${ADMIN_USER}
 ADMIN_PASSWORD_HASH=${ADMIN_PASS_HASH}
 JWT_SECRET=${JWT_SECRET}
 MIGRATION_TOKEN=${MIGRATION_TOKEN}
-PORT=${PANEL_PORT}
+PORT=${BACKEND_PORT}
+HOSTNAME=${BIND_HOST}
 NODE_ENV=production
 ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
 ENV
@@ -296,7 +332,7 @@ User=${SERVICE_USER}
 Group=${SERVICE_USER}
 WorkingDirectory=${INSTALL_DIR}
 EnvironmentFile=${INSTALL_DIR}/.env
-ExecStart=$(which node) node_modules/.bin/next start -p \${PORT:-${PANEL_PORT}}
+ExecStart=$(which node) node_modules/.bin/next start -H ${BIND_HOST} -p ${BACKEND_PORT}
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
@@ -321,7 +357,7 @@ UNIT
         set -a; . "${INSTALL_DIR}/.env"; set +a
         nohup sudo -u "$SERVICE_USER" -E \
             "$(which node)" "${INSTALL_DIR}/node_modules/.bin/next" start \
-            -p "${PORT:-${PANEL_PORT}}" \
+            -H "${BIND_HOST}" -p "${BACKEND_PORT}" \
             >>"${INSTALL_DIR}/logs/panel.log" 2>&1 &
         sleep 2
         success "Panel started in background (logs: ${INSTALL_DIR}/logs/panel.log)."
@@ -341,30 +377,43 @@ reload_nginx() {
     fi
 }
 
-setup_domain_ssl() {
-    [[ -z "$DOMAIN" ]] && return 0
-
-    info "Configuring nginx reverse proxy for ${DOMAIN}…"
-
-    # DNS sanity check (best effort)
-    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
-    DOMAIN_IP=$(getent hosts "$DOMAIN" | awk '{print $1}' | head -n1)
-    if [[ -n "$DOMAIN_IP" && -n "$SERVER_IP" && "$DOMAIN_IP" != "$SERVER_IP" ]]; then
-        warn "DNS for ${DOMAIN} resolves to ${DOMAIN_IP}, but server IP is ${SERVER_IP}."
-        warn "Let's Encrypt may fail until you point an A record at ${SERVER_IP}."
+write_nginx_vhost() {
+    # $1 = "http-only" or "with-ssl"
+    local mode="$1"
+    local vhost="/etc/nginx/sites-available/powervpn.conf"
+    local public_url_no_path
+    if [[ "$PANEL_PORT" == "443" ]]; then
+        public_url_no_path="https://\$host"
+    else
+        public_url_no_path="https://\$host:${PANEL_PORT}"
     fi
 
-    NGINX_VHOST="/etc/nginx/sites-available/powervpn.conf"
-    cat > "$NGINX_VHOST" <<NGINX
+    {
+        # Always serve port 80 — needed for ACME challenges and HTTP→HTTPS redirect.
+        cat <<NGINX
 server {
     listen 80;
     listen [::]:80;
     server_name ${DOMAIN};
 
-    client_max_body_size 25m;
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type "text/plain";
+    }
 
+NGINX
+        if [[ "$mode" == "with-ssl" && "$PANEL_PORT" != "80" ]]; then
+            cat <<NGINX
     location / {
-        proxy_pass http://127.0.0.1:${PANEL_PORT};
+        return 301 ${public_url_no_path}\$request_uri;
+    }
+}
+NGINX
+        else
+            # No SSL yet (or PANEL_PORT==80) → proxy directly on 80.
+            cat <<NGINX
+    location / {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -376,25 +425,115 @@ server {
     }
 }
 NGINX
+        fi
 
-    ln -sf "$NGINX_VHOST" /etc/nginx/sites-enabled/powervpn.conf
+        if [[ "$mode" == "with-ssl" && "$PANEL_PORT" != "80" ]]; then
+            cat <<NGINX
+
+server {
+    listen ${PANEL_PORT} ssl http2;
+    listen [::]:${PANEL_PORT} ssl http2;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    client_max_body_size 25m;
+
+    location / {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 300s;
+    }
+}
+NGINX
+        fi
+    } > "$vhost"
+
+    ln -sf "$vhost" /etc/nginx/sites-enabled/powervpn.conf
     rm -f /etc/nginx/sites-enabled/default
 
     if ! nginx -t 2>/dev/null; then
-        die "nginx config test failed. Inspect ${NGINX_VHOST}."
+        nginx -t || true
+        die "nginx config test failed. Inspect ${vhost}."
     fi
     reload_nginx
-    success "nginx reverse proxy active on port 80 for ${DOMAIN}."
+}
 
+setup_domain_ssl() {
+    [[ -z "$DOMAIN" ]] && return 0
+
+    info "Configuring nginx for ${DOMAIN} on port ${PANEL_PORT}…"
+
+    # DNS sanity check (best effort)
+    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    DOMAIN_IP=$(getent hosts "$DOMAIN" | awk '{print $1}' | head -n1)
+    if [[ -n "$DOMAIN_IP" && -n "$SERVER_IP" && "$DOMAIN_IP" != "$SERVER_IP" ]]; then
+        warn "DNS for ${DOMAIN} resolves to ${DOMAIN_IP}, but server IP is ${SERVER_IP}."
+        warn "Let's Encrypt may fail until you point an A record at ${SERVER_IP}."
+    fi
+
+    mkdir -p /var/www/letsencrypt
+    chown -R www-data:www-data /var/www/letsencrypt 2>/dev/null || true
+
+    # Step 1: HTTP-only vhost so certbot's HTTP-01 challenge can reach us.
+    write_nginx_vhost http-only
+    success "nginx serving on port 80 for ACME challenge."
+
+    # Step 2: Obtain a certificate via webroot (does not touch nginx config).
     info "Requesting Let's Encrypt certificate for ${DOMAIN}…"
-    if certbot --nginx -d "$DOMAIN" -m "$LE_EMAIL" --agree-tos --redirect --non-interactive 2>&1 | tail -10; then
-        success "HTTPS enabled — https://${DOMAIN}"
-        PANEL_URL="https://${DOMAIN}"
+    local cert_ok=0
+    if certbot certonly --webroot -w /var/www/letsencrypt \
+            -d "$DOMAIN" -m "$LE_EMAIL" --agree-tos \
+            --non-interactive --keep-until-expiring 2>&1 | tail -15; then
+        if [[ -s "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+            cert_ok=1
+        fi
+    fi
+
+    # Step 3: If we got a cert, switch nginx to SSL on the user's PANEL_PORT.
+    if [[ "$cert_ok" -eq 1 ]]; then
+        write_nginx_vhost with-ssl
+        success "HTTPS enabled on port ${PANEL_PORT} for ${DOMAIN}."
+        if [[ "$PANEL_PORT" == "443" ]]; then
+            PANEL_URL="https://${DOMAIN}"
+        else
+            PANEL_URL="https://${DOMAIN}:${PANEL_PORT}"
+        fi
     else
-        warn "Certbot failed. The panel is still reachable at http://${DOMAIN} (port 80)."
-        warn "Common causes: DNS not propagated, port 80 blocked, or rate-limit reached."
-        warn "Re-run later with: certbot --nginx -d ${DOMAIN} -m ${LE_EMAIL} --agree-tos --redirect"
+        warn "Certbot failed. Panel will be reachable at http://${DOMAIN} (port 80) only."
+        warn "Common causes: DNS not propagated, port 80 blocked upstream, or LE rate-limit."
+        warn "Retry: certbot certonly --webroot -w /var/www/letsencrypt -d ${DOMAIN} -m ${LE_EMAIL} --agree-tos"
+        warn "Then re-run this installer or run: nginx -t && systemctl reload nginx"
         PANEL_URL="http://${DOMAIN}"
+    fi
+}
+
+# ── Verify the panel is responding ────────────────────────────────────────────
+verify_panel() {
+    info "Verifying the panel is responding on 127.0.0.1:${BACKEND_PORT}…"
+    local ok=0
+    for _ in 1 2 3 4 5 6 7 8; do
+        if curl -fsS --max-time 4 -o /dev/null "http://127.0.0.1:${BACKEND_PORT}/" 2>/dev/null; then
+            ok=1; break
+        fi
+        sleep 3
+    done
+    if [[ "$ok" -eq 1 ]]; then
+        success "Panel is responding."
+    else
+        warn "Panel did not respond after ~30s."
+        warn "Check logs: journalctl -u powervpn -e   (or ${INSTALL_DIR}/logs/panel.log)"
     fi
 }
 
@@ -430,11 +569,10 @@ configure_firewall() {
     command -v ufw &>/dev/null || return 0
 
     if [[ -n "$DOMAIN" ]]; then
-        ufw allow 80/tcp  >/dev/null 2>&1 || true
-        ufw allow 443/tcp >/dev/null 2>&1 || true
-        # Panel port is reachable only via nginx → close it from the public
-        ufw delete allow "$PANEL_PORT"/tcp >/dev/null 2>&1 || true
-        info "Firewall: ports 80 + 443 opened, ${PANEL_PORT} kept private."
+        ufw allow 80/tcp >/dev/null 2>&1 || true                   # ACME + redirect
+        ufw allow "${PANEL_PORT}"/tcp >/dev/null 2>&1 || true      # public HTTPS
+        # Internal Next.js port stays loopback-only — no rule needed.
+        info "Firewall: ports 80 and ${PANEL_PORT} opened (HTTPS on ${PANEL_PORT})."
     else
         ufw allow "$PANEL_PORT"/tcp >/dev/null 2>&1 || true
         info "Firewall: port ${PANEL_PORT} opened."
@@ -457,16 +595,15 @@ print_summary() {
         echo -e "  Domain:         ${CYAN}${DOMAIN}${NC}"
     fi
     echo -e "  Server IP:      ${CYAN}${SERVER_IP}${NC}"
-    echo -e "  Panel Port:     ${CYAN}${PANEL_PORT}${NC} (internal)"
+    echo -e "  Public Port:    ${CYAN}${PANEL_PORT}${NC}"
+    if [[ -n "${DOMAIN:-}" ]]; then
+        echo -e "  Backend Port:   ${CYAN}${BACKEND_PORT}${NC} (loopback only)"
+    fi
     echo -e "  Username:       ${YELLOW}${ADMIN_USER}${NC}"
     echo -e "  Password:       ${YELLOW}${ADMIN_PASS}${NC}"
     echo -e "  Credentials:    ${CRED_FILE}"
     echo -e "  Manage panel:   ${CYAN}powervpn${NC}"
     echo -e "${GREEN}======================================================${NC}"
-    if [[ -n "${DOMAIN:-}" ]]; then
-        echo -e "${YELLOW}  Note: open ${PANEL_URL} (without :${PANEL_PORT}). The panel${NC}"
-        echo -e "${YELLOW}        port is firewalled — nginx serves it on 80/443.${NC}"
-    fi
     echo -e "${RED}  Keep credentials safe and delete ${CRED_FILE} after saving!${NC}"
     echo
 }
@@ -487,6 +624,7 @@ main() {
     install_cli
     configure_firewall
     save_credentials
+    verify_panel
     print_summary
 }
 
