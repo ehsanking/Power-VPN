@@ -1,16 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import * as jose from 'jose';
-
-// Get dynamically generated secret per instance/deployment
-async function getSecret() {
-    if (process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32) {
-         return new TextEncoder().encode(process.env.JWT_SECRET);
-    }
-    // Note: To be perfectly secure we shouldn't have a fallback, but for development we need something robust.
-    // If we fail here, the whole site breaks.
-    throw new Error("A 32+ char JWT_SECRET must be provided in the environment variables.");
-}
+import { getJwtSecret } from '@/lib/auth-utils';
 
 export async function middleware(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith('/api');
@@ -38,12 +29,20 @@ export async function middleware(request: NextRequest) {
 
   const sessionCookie = request.cookies.get('vpn_session_jwt');
   
+  // CSRF protection for state-changing requests
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+    const requestedWith = request.headers.get('x-requested-with');
+    if (requestedWith !== 'XMLHttpRequest') {
+        return NextResponse.json({ error: 'Forbidden: Missing CSRF header' }, { status: 403 });
+    }
+  }
+
   if (!sessionCookie) {
     return NextResponse.json({ error: 'Unauthorized: missing token' }, { status: 401 });
   }
 
   try {
-    const secret = await getSecret();
+    const secret = await getJwtSecret();
     const { payload } = await jose.jwtVerify(sessionCookie.value, secret);
     
     if (payload.role !== 'admin') {

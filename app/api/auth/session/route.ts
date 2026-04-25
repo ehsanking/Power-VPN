@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import * as jose from 'jose';
 import bcrypt from 'bcryptjs';
+import { getJwtSecret } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,12 +30,7 @@ function isRateLimited(ip: string): boolean {
     return data.count > MAX_ATTEMPTS;
 }
 
-async function getSecret() {
-    if (process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32) {
-         return new TextEncoder().encode(process.env.JWT_SECRET);
-    }
-    throw new Error("A 32+ char JWT_SECRET must be provided in the environment variables.");
-}
+// Removed local getSecret
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -42,7 +38,7 @@ export async function GET() {
 
   if (session) {
       try {
-          const secret = await getSecret();
+          const secret = await getJwtSecret();
           const { payload } = await jose.jwtVerify(session.value, secret);
           if (payload.role === 'admin') {
                 return NextResponse.json({ 
@@ -91,7 +87,7 @@ export async function POST(req: Request) {
 
     if (username === ADMIN_USER && isPasswordValid) {
       const cookieStore = await cookies();
-      const secret = await getSecret();
+      const secret = await getJwtSecret();
       const token = await new jose.SignJWT({ role: 'admin' })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()

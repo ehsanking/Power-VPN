@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { encrypt } from '@/lib/crypto';
+import { auditLog } from '@/lib/audit-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
             main_protocol || protocol || 'openvpn'
           ]
         );
+        await auditLog('create_user', 'admin', username, { username });
         results.push(username);
       } catch (insertError: any) {
         console.error("Failed to insert user", username, insertError.message);
@@ -113,6 +115,7 @@ export async function PATCH(req: Request) {
   try {
     const { id, status } = await req.json();
     await query('UPDATE vpn_users SET status = ? WHERE id = ?', [status, id]);
+    await auditLog('update_user_status', 'admin', String(id), { status });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -124,6 +127,7 @@ export async function DELETE(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     await query('DELETE FROM vpn_users WHERE id = ?', [id]);
+    await auditLog('delete_user', 'admin', id || 'unknown', { id });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
