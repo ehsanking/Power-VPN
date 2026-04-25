@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const servers = await query('SELECT * FROM vpn_servers ORDER BY id DESC');

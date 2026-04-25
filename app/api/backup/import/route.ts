@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import pool, { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
     try {
         const backup = await req.json();

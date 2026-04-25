@@ -54,8 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      // Run lazy migrations
-      fetch('/api/migrate').catch(() => {});
       await checkSession();
     };
     init();

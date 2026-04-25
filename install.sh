@@ -34,16 +34,33 @@ DB_HOST=${DB_HOST:-localhost}
 read -p "🛠 Enter MySQL Database Name [vpn]: " DB_NAME
 DB_NAME=${DB_NAME:-vpn}
 
-read -p "🛠 Enter MySQL User [root]: " DB_USER
-DB_USER=${DB_USER:-root}
-
-read -s -p "🛠 Enter MySQL Password: " DB_PASS
-echo ""
+# Generate strong random credentials
+DB_USER="vpn_$(openssl rand -hex 4)"
+DB_PASS=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 16)
+MIGRATION_TOKEN=$(openssl rand -hex 24)
 
 # 3. System Updates & Dependencies
 echo -e "\e[1;32m📦 Updating system and installing dependencies...\e[0m"
 apt update && apt upgrade -y
-apt install -y curl git nginx certbot python3-certbot-nginx mysql-client
+apt install -y curl git nginx certbot python3-certbot-nginx mariadb-server mysql-client
+
+# 3.5 Database Setup
+echo -e "\e[1;32m🗄️ Setting up Database...\e[0m"
+if [ "$DB_HOST" = "localhost" ] || [ "$DB_HOST" = "127.0.0.1" ]; then
+    systemctl start mariadb || systemctl start mysql
+    mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
+    mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';"
+    mysql -e "FLUSH PRIVILEGES;"
+    echo -e "\e[1;32m✅ Local database and random user created securely.\e[0m"
+else
+    echo -e "\e[1;33m⚠️ Remote Database Host detected ($DB_HOST). Please create the user manually on your DB server:\e[0m"
+    echo "CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    echo "CREATE USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';"
+    echo "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';"
+    echo "FLUSH PRIVILEGES;"
+    sleep 5
+fi
 
 # 5. Installing Node.js (v20)
 if ! command -v node &> /dev/null; then
@@ -76,6 +93,7 @@ NEXTAUTH_URL=https://$DOMAIN_NAME
 PORT=3000
 ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$ADMIN_HASH
+MIGRATION_TOKEN=$MIGRATION_TOKEN
 EOF
 
 echo -e "\e[1;32m🛠 Building the application...\e[0m"

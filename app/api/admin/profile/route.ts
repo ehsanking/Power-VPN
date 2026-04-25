@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { generateOvpnProfile } from '@/lib/ovpn-generator';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { username, config } = await req.json();

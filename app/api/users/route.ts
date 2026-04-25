@@ -3,6 +3,8 @@ import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Note: Migrations are handled centrally in /api/migrate now

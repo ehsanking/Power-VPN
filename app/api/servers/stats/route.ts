@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import pool, { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // 1. Simulate data: update random servers with bandwidth/latency to make the dashboard look alive

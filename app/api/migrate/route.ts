@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
+    const authHeader = req.headers.get('x-migration-token');
+    
+    if (!authHeader || authHeader !== process.env.MIGRATION_TOKEN) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         await pool.query("ALTER TABLE vpn_users MODIFY COLUMN status ENUM('active', 'inactive', 'suspended') DEFAULT 'active';");
     } catch(e: any) { console.log('user status mod fail: ', e.message); }

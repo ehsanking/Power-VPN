@@ -3,6 +3,8 @@ import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import * as jose from 'jose';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { username, password } = await req.json();

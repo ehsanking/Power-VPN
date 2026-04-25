@@ -20,8 +20,9 @@ show_menu() {
     echo -e "\e[1;32m2)\e[0m Change Admin Password"
     echo -e "\e[1;32m3)\e[0m Change Panel Port"
     echo -e "\e[1;32m4)\e[0m Update App & Packages"
-    echo -e "\e[1;31m5)\e[0m Remove Project"
-    echo -e "\e[1;35m6)\e[0m Install / Protocol Modules Manager"
+    echo -e "\e[1;34m5)\e[0m Run Database Migration"
+    echo -e "\e[1;31m6)\e[0m Remove Project"
+    echo -e "\e[1;35m7)\e[0m Install / Protocol Modules Manager"
     echo -e "\e[1;37m0)\e[0m Exit"
     echo -e "\e[1;33m==========================================\e[0m"
     echo -n "Select an option: "
@@ -89,6 +90,25 @@ while true; do
             read -r dummy
             ;;
         5)
+            echo "Running Database Migration..."
+            # Extract token and port from .env
+            if [ -f "$ENV_FILE" ]; then
+                TOKEN=$(grep "^MIGRATION_TOKEN=" $ENV_FILE | cut -d '=' -f2)
+                PORT=$(grep "^PORT=" $ENV_FILE | cut -d '=' -f2)
+                PORT=${PORT:-3000}
+                if [ -n "$TOKEN" ]; then
+                   echo -e "\e[1;33mExecuting migration over HTTP...\e[0m"
+                   curl -s -X GET http://localhost:$PORT/api/migrate -H "x-migration-token: $TOKEN"
+                   echo -e "\n\e[1;32mMigration completed.\e[0m"
+                else
+                   echo -e "\e[1;31mMIGRATION_TOKEN not found in .env.\e[0m"
+                fi
+            else
+                echo -e "\e[1;31mNo .env file found.\e[0m"
+            fi
+            sleep 3
+            ;;
+        6)
             echo -e "\e[1;31mWARNING:\e[0m This will completely remove the Power VPN Panel and ALL DATA!"
             echo -n "Are you sure? (Type 'YES' to confirm): "
             read -r confirm
@@ -103,7 +123,7 @@ while true; do
                 sleep 2
             fi
             ;;
-        6)
+        7)
             while true; do
                 clear
                 echo -e "\e[1;35m--- Protocol Modules Manager ---\e[0m"

@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import * as jose from 'jose';
 import bcrypt from 'bcryptjs';
 
+export const dynamic = 'force-dynamic';
+
 const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASS_HASH = process.env.ADMIN_PASSWORD_HASH;
 const LEGACY_ADMIN_PASS = process.env.ADMIN_PASSWORD || 'password';
