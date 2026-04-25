@@ -6,7 +6,7 @@
     <img src="https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js" alt="Next.js" />
     <img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=flat-square&logo=typescript" alt="TypeScript" />
     <img src="https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=flat-square&logo=tailwind-css" alt="Tailwind CSS" />
-    <img src="https://img.shields.io/badge/Database-PostgreSQL_|_SQLite-4169E1?style=flat-square&logo=postgresql" alt="PostgreSQL" />
+    <img src="https://img.shields.io/badge/Database-MySQL-4169E1?style=flat-square&logo=mysql" alt="MySQL" />
     <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License" />
   </p>
 </div>
@@ -34,9 +34,7 @@ Full integration, provisioning, and management for all major VPN protocols from 
 - Integrated **SweetAlert2** for fluid, elegant, informative alerts for errors, port conflicts, and user operations.
 
 ### 🗄️ Database Scalability & Stability
-- Added robust core support for **PostgreSQL** alongside SQLite/MySQL schemas.
-- **Smart Migration Engine**: Instantly export/import configurations and users to safely migrate between node deployments without data loss.
-- **Concurrency Fixes**: Upgraded architectural lock mechanisms (`DB_WRITE_LOCK`) to eliminate deadlocks and database corruption under high traffic loads.
+- **MySQL Support**: Robust schema for MySQL 8.0+.
 - **Persistent Sessions**: Upgraded `SECRET_KEY` (JWT secret) storage for robust security preventing forced admin logouts after service restarts.
 
 ### 👥 Advanced User Management

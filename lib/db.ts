@@ -7,8 +7,11 @@ const poolConfig = {
   database: process.env.MYSQL_DATABASE,
   port: parseInt(process.env.MYSQL_PORT || '3306'),
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: parseInt(process.env.DB_POOL_SIZE || '20'),
   queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  connectTimeout: 10000,
 };
 
 // Log warning if config is missing

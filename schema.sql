@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS vpn_users (
     main_protocol VARCHAR(50) NULL,
     custom_config JSON, -- Store per-user config details (tcp/udp, keepalive)
     profile_data TEXT,
-    FOREIGN KEY (parent_id) REFERENCES vpn_users(id) ON DELETE SET NULL
+    FOREIGN KEY (parent_id) REFERENCES vpn_users(id) ON DELETE SET NULL,
+    INDEX idx_vpn_users_port (port),
+    INDEX idx_users_status_expires (status, expires_at)
 );
 
 CREATE TABLE IF NOT EXISTS reseller_limits (
@@ -80,7 +82,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     end_time TIMESTAMP NULL,
     status ENUM('active', 'disconnected') DEFAULT 'active',
     FOREIGN KEY (user_id) REFERENCES vpn_users(id) ON DELETE SET NULL,
-    FOREIGN KEY (server_id) REFERENCES vpn_servers(id) ON DELETE SET NULL
+    FOREIGN KEY (server_id) REFERENCES vpn_servers(id) ON DELETE SET NULL,
+    INDEX idx_sessions_server_status (server_id, status)
 );
 
 -- Seed initial server
