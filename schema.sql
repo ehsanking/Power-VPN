@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS vpn_users (
     cisco_password VARCHAR(255) NULL,
     l2tp_password VARCHAR(255) NULL,
     wg_pubkey VARCHAR(255) NULL,
+    wg_privkey VARCHAR(255) NULL,
     wg_ip VARCHAR(50) NULL,
     xray_uuid VARCHAR(255) NULL,
     xray_flow VARCHAR(255) NULL,

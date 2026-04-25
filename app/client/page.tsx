@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Shield, Download, MapPin, Activity, QrCode, Zap, CopyIcon, Wifi, AlertTriangle } from 'lucide-react';
+import { Shield, Download, MapPin, Activity, QrCode, Zap, CopyIcon, Wifi, AlertTriangle, Radio } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function ClientPortal() {
@@ -36,8 +36,12 @@ export default function ClientPortal() {
     setLoading(false);
   };
 
-  const handleDownload = () => {
+  const handleDownloadOvpn = () => {
     window.location.href = '/api/client/download';
+  };
+
+  const handleDownloadWg = () => {
+    window.location.href = '/api/client/wg-download';
   };
 
   const generateXrayConfig = (uuid: string) => {
@@ -108,21 +112,29 @@ export default function ClientPortal() {
               <Activity className="text-slate-300" size={24} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={handleDownload}
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                onClick={handleDownloadOvpn}
                 className="w-full bg-slate-900 text-white rounded-xl py-3 font-bold flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-colors shadow"
               >
                 <Download size={18} />
                 <span className="text-xs">OpenVPN</span>
               </button>
-              
-              <button 
+
+              <button
+                onClick={handleDownloadWg}
+                className="w-full bg-green-600 text-white rounded-xl py-3 font-bold flex flex-col items-center justify-center gap-1 hover:bg-green-700 transition-colors shadow"
+              >
+                <Radio size={18} />
+                <span className="text-xs">WireGuard</span>
+              </button>
+
+              <button
                 onClick={copyXray}
                 className="w-full bg-pink-600 text-white rounded-xl py-3 font-bold flex flex-col items-center justify-center gap-1 hover:bg-pink-700 transition-colors shadow"
               >
                 <CopyIcon size={18} />
-                <span className="text-xs">{copiedLink ? 'Copied!' : 'Copy Xray (VLESS)'}</span>
+                <span className="text-xs">{copiedLink ? 'Copied!' : 'Xray VLESS'}</span>
               </button>
             </div>
 

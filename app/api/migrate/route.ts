@@ -29,6 +29,14 @@ export async function GET(request: NextRequest) {
      ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN DEFAULT FALSE;`,
 
     `ALTER TABLE vpn_users ADD INDEX IF NOT EXISTS idx_parent_id (parent_id);`,
+
+    `ALTER TABLE vpn_users
+     ADD COLUMN IF NOT EXISTS wg_privkey VARCHAR(255) NULL AFTER wg_pubkey;`,
+
+    `INSERT IGNORE INTO settings (\`key\`, \`value\`) VALUES
+     ('wgServerPubKey', ''),
+     ('wgPort', '51820'),
+     ('wgSubnet', '10.8.0.0/24');`,
   ];
 
   const results: string[] = [];
