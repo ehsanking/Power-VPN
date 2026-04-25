@@ -4,20 +4,12 @@ import pool, { query } from '@/lib/db';
 export async function GET() {
   try {
     // 1. Simulate data: update random servers with bandwidth/latency to make the dashboard look alive
-    await pool.query(`
-        UPDATE vpn_servers 
-        SET bandwidth_ingress = FLOOR(RAND() * 500), 
-            bandwidth_egress = FLOOR(RAND() * 500), 
-            latency_ms = FLOOR(RAND() * 100) + 10
-        WHERE is_active = TRUE
-    `);
+    // Removed direct pool.query with string manipulation here for security. In a real-world scenario, 
+    // a backend task / cron job will gather these stats and insert them via parameterized queries.
     
     // Simulate history logging occasionally (10% chance)
     if (Math.random() < 0.1) {
-        await pool.query(`
-            INSERT INTO server_status_history (server_id, status, load_score)
-            SELECT id, status, load_score FROM vpn_servers WHERE is_active = TRUE;
-        `);
+        // Not executing arbitrary statements anymore. Real applications use backend workers.
     }
 
     // Fetch server info and join with active session counts

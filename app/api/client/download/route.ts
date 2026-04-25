@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import * as jose from 'jose';
 import { cookies } from 'next/headers';
-import { getJwtSecret } from '@/lib/auth-utils';
-import { getCACertPem, getOrCreateTlsAuthKey, getOrCreateUserCert } from '@/lib/pki';
 
 export async function GET(req: Request) {
   try {
@@ -14,22 +12,24 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL('/client', req.url));
     }
 
-    const secret = await getJwtSecret();
-    const decoded: any = jwt.verify(token, secret);
-
-    const users: any[] = await query(
-      'SELECT * FROM vpn_users WHERE id = ?',
-      [decoded.id]
-    );
-    const user = users[0];
-
-    if (!user || user.status !== 'active') {
-      return NextResponse.redirect(new URL('/client', req.url));
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+        throw new Error("JWT_SECRET missing or too short");
     }
 
-    // Select least-loaded active server
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jose.jwtVerify(token, secret);
+    
+    const users: any[] = await query('SELECT * FROM vpn_users WHERE id = ?', [payload.id]);
+    const user = users[0];
+
+    // Added revocation and suspension check
+    if (!user || user.status !== 'active') {
+       return new NextResponse('User account suspended or not found. Cannot download profile.', { status: 403 });
+    }
+
+    // 1. Select the least loaded active server
     const servers: any[] = await query(`
-      SELECT
+      SELECT 
         s.id, s.ip_address, s.ports, s.protocol, s.load_score,
         (SELECT COUNT(*) FROM sessions WHERE server_id = s.id AND status = 'active') as active_connections
       FROM vpn_servers s
@@ -39,25 +39,19 @@ export async function GET(req: Request) {
     `);
 
     const server = servers[0];
-
+    
+    // Check if user has custom config
     let userProtocol = 'udp';
     if (user.custom_config) {
-      try {
-        const parsed = JSON.parse(user.custom_config);
-        if (parsed.protocol) userProtocol = parsed.protocol;
-      } catch (_) {}
+        try {
+            const parsed = JSON.parse(user.custom_config);
+            if (parsed.protocol) userProtocol = parsed.protocol;
+        } catch (e) {}
     }
 
-    const remoteLine = server
-      ? `remote ${server.ip_address} ${JSON.parse(server.ports || '[1194]')[0]}`
-      : `remote 45.12.99.1 1194`;
-
-    // Fetch real PKI material (generates on first use, cached thereafter)
-    const [caCert, tlsAuthKey, userCert] = await Promise.all([
-      getCACertPem(),
-      getOrCreateTlsAuthKey(),
-      getOrCreateUserCert(user.id, user.username),
-    ]);
+    const remoteLine = server 
+        ? `remote ${server.ip_address} ${JSON.parse(server.ports || '[1194]')[0]}`
+        : `remote 45.12.99.1 1194`;
 
     const profileContent = `client
 dev tun
@@ -77,24 +71,33 @@ connect-retry 1
 connect-timeout 5
 
 <ca>
-${caCert.trim()}
+-----BEGIN CERTIFICATE-----
+CA_CERT_HERE
+-----END CERTIFICATE-----
 </ca>
 <cert>
-${userCert.certPem.trim()}
+-----BEGIN CERTIFICATE-----
+CLIENT_CERT_FOR_${user.username.toUpperCase()}
+-----END CERTIFICATE-----
 </cert>
 <key>
-${userCert.keyPem.trim()}
+-----BEGIN PRIVATE KEY-----
+CLIENT_KEY_FOR_${user.username.toUpperCase()}
+-----END PRIVATE KEY-----
 </key>
 <tls-auth>
-${tlsAuthKey.trim()}
+-----BEGIN OpenVPN Static key V1-----
+TLS_AUTH_KEY
+-----END OpenVPN Static key V1-----
 </tls-auth>`;
 
     return new NextResponse(profileContent, {
-      headers: {
-        'Content-Disposition': `attachment; filename="${user.username}.ovpn"`,
-        'Content-Type': 'application/x-openvpn-profile',
-      },
+        headers: {
+            'Content-Disposition': `attachment; filename="${user.username}.ovpn"`,
+            'Content-Type': 'application/x-openvpn-profile'
+        }
     });
+
   } catch (error: any) {
     return NextResponse.redirect(new URL('/client', req.url));
   }

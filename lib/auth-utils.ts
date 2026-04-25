@@ -13,6 +13,10 @@ export async function getJwtSecret(): Promise<string> {
         await query('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=?', ['jwtSecret', newSecret, newSecret]);
         return newSecret;
     } catch (e) {
-        return process.env.JWT_SECRET || 'fallback-secret-for-dev';
+        if (process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32) {
+             return process.env.JWT_SECRET;
+        }
+        // Force crashing if we can't get a secure token, rather than providing an insecure default
+        throw new Error('Database is unreachable and no secure JWT_SECRET environment variable is defined. Refusing to use fallback secret.');
     }
 }

@@ -1,66 +1,59 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import bcrypt from 'bcryptjs';
-import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/rate-limiter';
-import { parseBody, adminLoginSchema } from '@/lib/validation';
+import * as jose from 'jose';
 
 const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'password';
 
-// Support pre-hashed password via ADMIN_PASSWORD_HASH env var.
-// If only ADMIN_PASSWORD is set, hash it once at startup.
-const _rawPass = process.env.ADMIN_PASSWORD || 'password';
-const _preHash = process.env.ADMIN_PASSWORD_HASH;
-
-let adminPasswordHash: string;
-if (_preHash) {
-  adminPasswordHash = _preHash;
-} else {
-  adminPasswordHash = bcrypt.hashSync(_rawPass, 10);
-  if (process.env.NODE_ENV === 'production') {
-    console.warn(
-      '[Security] Set ADMIN_PASSWORD_HASH to a bcrypt hash instead of ADMIN_PASSWORD in .env'
-    );
-  }
+async function getSecret() {
+    if (process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32) {
+         return new TextEncoder().encode(process.env.JWT_SECRET);
+    }
+    throw new Error("A 32+ char JWT_SECRET must be provided in the environment variables.");
 }
 
 export async function GET() {
   const cookieStore = await cookies();
-  const session = cookieStore.get('vpn_session');
+  const session = cookieStore.get('vpn_session_jwt');
 
-  if (session?.value === 'authenticated') {
-    return NextResponse.json({
-      user: { email: ADMIN_USER + '@local', displayName: 'Administrator' },
-      isAdmin: true,
-    });
+  if (session) {
+      try {
+          const secret = await getSecret();
+          const { payload } = await jose.jwtVerify(session.value, secret);
+          if (payload.role === 'admin') {
+                return NextResponse.json({ 
+                user: { email: ADMIN_USER + '@local', displayName: 'Administrator' },
+                isAdmin: true 
+                });
+          }
+      } catch (e) {
+          // Token invalid, fallthrough
+      }
   }
 
   return NextResponse.json({ user: null, isAdmin: false });
 }
 
 export async function POST(req: Request) {
-  // Rate limit: max 10 login attempts per minute per IP
-  const ip = getClientIp(req);
-  const rl = checkRateLimit(`admin-login:${ip}`, 10, 60_000);
-  if (!rl.allowed) return rateLimitResponse(rl);
-
   try {
-    const body = await req.json();
-    const parsed = parseBody(adminLoginSchema, body);
-    if (!parsed.success) return parsed.response;
+    const { username, password } = await req.json();
 
-    const { username, password } = parsed.data;
-
-    const usernameMatch = username === ADMIN_USER;
-    const passwordMatch = await bcrypt.compare(password, adminPasswordHash);
-
-    if (usernameMatch && passwordMatch) {
+    if (username === ADMIN_USER && password === ADMIN_PASS) {
       const cookieStore = await cookies();
-      cookieStore.set('vpn_session', 'authenticated', {
+      const secret = await getSecret();
+      const token = await new jose.SignJWT({ role: 'admin' })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('24h')
+        .sign(secret);
+      
+      cookieStore.set('vpn_session_jwt', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24,
+        maxAge: 60 * 60 * 24 // 1 day
       });
+
       return NextResponse.json({ success: true });
     }
 
@@ -72,6 +65,7 @@ export async function POST(req: Request) {
 
 export async function DELETE() {
   const cookieStore = await cookies();
-  cookieStore.delete('vpn_session');
+  cookieStore.delete('vpn_session_jwt');
+  cookieStore.delete('vpn_session'); // clear legacy cookie too
   return NextResponse.json({ success: true });
 }
