@@ -58,6 +58,7 @@ export async function POST(req: Request) {
       );
     });
     await Promise.all(promises);
+    await auditLog('update_settings', 'admin', 'global', body);
     return NextResponse.json({ success: true });
   } catch (error) {
     return handleApiError(error);

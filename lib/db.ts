@@ -22,6 +22,16 @@ if (!poolConfig.host || !poolConfig.user) {
 
 const pool = mysql.createPool(poolConfig);
 
+// Validate connection on startup
+pool.getConnection()
+  .then(conn => {
+    logger.info('Database connection established successfully');
+    conn.release();
+  })
+  .catch(err => {
+    logger.error({ err }, 'Failed to connect to the database on startup');
+  });
+
 export default pool;
 
 /**

@@ -61,7 +61,14 @@ export async function GET(req: Request) {
             'ALTER TABLE vpn_servers ADD COLUMN supports_l2tp BOOLEAN DEFAULT FALSE;',
             'ALTER TABLE vpn_servers ADD COLUMN supports_wireguard BOOLEAN DEFAULT FALSE;',
             'ALTER TABLE vpn_servers ADD COLUMN supports_xray BOOLEAN DEFAULT FALSE;',
-            'ALTER TABLE vpn_users ADD COLUMN password_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'
+            'ALTER TABLE vpn_users ADD COLUMN password_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+            'ALTER TABLE vpn_users ADD INDEX idx_parent_id (parent_id);',
+            'ALTER TABLE logs ADD COLUMN user_id INT NULL;',
+            'ALTER TABLE logs ADD FOREIGN KEY (user_id) REFERENCES vpn_users(id) ON DELETE SET NULL;',
+            'ALTER TABLE vpn_users ADD COLUMN traffic_up_total BIGINT DEFAULT 0;',
+            'ALTER TABLE vpn_users ADD COLUMN traffic_down_total BIGINT DEFAULT 0;',
+            'ALTER TABLE vpn_servers ADD COLUMN domain VARCHAR(255) NULL;',
+            'ALTER TABLE vpn_servers ADD INDEX idx_server_status (status, is_active);'
         ];
 
         for (const sql of migrations) {
