@@ -1,252 +1,151 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { UserSchema, UserFormData } from '@/lib/schemas';
+import { fetchApi } from '@/lib/api-client';
+import { toast } from 'sonner';
+import { X, UserPlus, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-interface AddUserModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (e: React.FormEvent) => void;
-  newUsername: string;
-  setNewUsername: (val: string) => void;
-  isBulk?: boolean;
-  setIsBulk?: (val: boolean) => void;
-  password?: string;
-  setPassword?: (val: string) => void;
-  ciscoPassword?: string;
-  setCiscoPassword?: (val: string) => void;
-  l2tpPassword?: string;
-  setL2tpPassword?: (val: string) => void;
-  maxConnections?: string;
-  setMaxConnections?: (val: string) => void;
-  protocol?: string;
-  setProtocol?: (val: string) => void;
-  port?: string;
-  setPort?: (val: string) => void;
-  expirationDays: string;
-  setExpirationDays: (val: string) => void;
-  trafficLimit: string;
-  setTrafficLimit: (val: string) => void;
+interface Props {
+  onSuccess: () => void;
 }
 
-export function AddUserModal({
-  isOpen,
-  onClose,
-  onSubmit,
-  newUsername,
-  setNewUsername,
-  isBulk = false,
-  setIsBulk,
-  password = '',
-  setPassword,
-  ciscoPassword = '',
-  setCiscoPassword,
-  l2tpPassword = '',
-  setL2tpPassword,
-  maxConnections = '1',
-  setMaxConnections,
-  protocol = 'openvpn',
-  setProtocol,
-  port = '',
-  setPort,
-  expirationDays,
-  setExpirationDays,
-  trafficLimit,
-  setTrafficLimit
-}: AddUserModalProps) {
+export function AddUserModal({ onSuccess }: Props) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Address Defect 40: Shared Zod Schema validation
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm<UserFormData>({
+    resolver: zodResolver(UserSchema),
+    defaultValues: {
+      role: 'user'
+    }
+  });
+
+  const onSubmit = async (data: UserFormData) => {
+    setIsSubmitting(true);
+    const result = await fetchApi('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (result.error) {
+      toast.error(result.error.message);
+    } else {
+      toast.success('User created successfully');
+      setIsOpen(false);
+      reset();
+      onSuccess();
+    }
+    setIsSubmitting(false);
+  };
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm overflow-y-auto pt-20"
-          />
-          <motion.form 
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            onSubmit={onSubmit}
-            className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl p-8 border border-slate-200 my-auto sm:my-8 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 mb-1">Add New User</h3>
-                <p className="text-slate-500 text-sm">Create standard or bulk multi-protocol users.</p>
-              </div>
-              {setIsBulk && (
-                <button
-                  type="button"
-                  onClick={() => setIsBulk(!isBulk)}
-                  className="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors"
-                >
-                  {isBulk ? 'Switch to Single' : 'Bulk Create'}
-                </button>
-              )}
-            </div>
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-200"
+      >
+        <UserPlus size={20} />
+        Add User
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
             
-            <div className="space-y-4">
-              {isBulk ? (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Users (One per line)</label>
-                  <textarea 
-                    required
-                    autoFocus
-                    placeholder={'user1\nuser2\nuser3'}
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono h-32"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">Note: Bulk users will use the same passwords and quotas configured below.</p>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Login Username</label>
-                  <input 
-                    type="text" 
-                    required
-                    autoFocus
-                    placeholder="e.g. john_doe"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono"
-                  />
-                </div>
-              )}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 border-l-4 border-blue-500 pl-4">Create New User</h3>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
-              {setPassword && (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Portal Password (Optional)</label>
-                  <input 
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <input
+                    {...register('username')}
+                    type="text"
+                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:outline-none transition-all ${
+                      errors.username ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-blue-100'
+                    }`}
+                    placeholder="e.g. johndoe"
+                  />
+                  {errors.username && (
+                    <p className="mt-1 text-xs text-red-500">{errors.username.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input
+                    {...register('password')}
                     type="password"
-                    placeholder="Leave blank for no portal access"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono"
+                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:outline-none transition-all ${
+                      errors.password ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-blue-100'
+                    }`}
+                    placeholder="Min 6 characters"
                   />
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+                  )}
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-4">
-                {setCiscoPassword && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cisco Password</label>
-                    <input 
-                      type="text"
-                      placeholder="Optional"
-                      value={ciscoPassword}
-                      onChange={(e) => setCiscoPassword(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono text-sm"
-                    />
-                  </div>
-                )}
-                {setL2tpPassword && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">L2TP Password</label>
-                    <input 
-                      type="text"
-                      placeholder="Optional"
-                      value={l2tpPassword}
-                      onChange={(e) => setL2tpPassword(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono text-sm"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {setMaxConnections && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Max Connections</label>
-                    <input 
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={maxConnections}
-                      onChange={(e) => setMaxConnections(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                    />
-                  </div>
-                )}
-                {setProtocol && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Main Protocol</label>
-                    <select 
-                      value={protocol}
-                      onChange={(e) => setProtocol(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono text-sm"
-                    >
-                      <option value="openvpn">OpenVPN</option>
-                      <option value="wireguard">WireGuard</option>
-                      <option value="cisco">Cisco AnyConnect</option>
-                      <option value="l2tp">L2TP/IPsec</option>
-                      <option value="xray">Xray (VLESS/VMess)</option>
-                    </select>
-                  </div>
-                )}
-                {setPort && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Port (Optional)</label>
-                    <input 
-                      type="number"
-                      placeholder="e.g. 443"
-                      value={port}
-                      onChange={(e) => setPort(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-mono text-sm"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Active For</label>
-                  <select 
-                    value={expirationDays}
-                    onChange={(e) => setExpirationDays(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <select
+                    {...register('role')}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all bg-white"
                   >
-                    <option value="7">1 Week</option>
-                    <option value="30">1 Month</option>
-                    <option value="90">3 Months</option>
-                    <option value="365">1 Year</option>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="reseller">Reseller</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Data Quota (GB)</label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    max="1000"
-                    value={trafficLimit}
-                    onChange={(e) => setTrafficLimit(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                  />
-                </div>
-              </div>
-            </div>
 
-            <div className="flex gap-3 mt-8">
-              <button 
-                type="button"
-                onClick={onClose}
-                className="flex-1 bg-white border border-slate-200 text-slate-600 font-semibold py-3 rounded-xl hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit"
-                className="flex-1 bg-orange-600 text-white font-semibold py-3 rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-200 active:scale-95 transition-all"
-              >
-                {isBulk ? 'Add Users' : 'Add User'}
-              </button>
-            </div>
-          </motion.form>
-        </div>
-      )}
-    </AnimatePresence>
+                <div className="pt-4">
+                  <button
+                    disabled={isSubmitting}
+                    type="submit"
+                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="animate-spin" size={20} />
+                    ) : (
+                      'Create User Account'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
