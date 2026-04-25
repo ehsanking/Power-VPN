@@ -72,9 +72,82 @@ install_dependencies() {
 }
 
 # ── MySQL setup ───────────────────────────────────────────────────────────────
+# Detect which database service is installed
+detect_db_service() {
+    if systemctl list-unit-files 2>/dev/null | grep -q '^mariadb\.service'; then
+        DB_SERVICE="mariadb"
+    elif systemctl list-unit-files 2>/dev/null | grep -q '^mysql\.service'; then
+        DB_SERVICE="mysql"
+    elif [[ -f /etc/init.d/mariadb ]]; then
+        DB_SERVICE="mariadb"
+    elif [[ -f /etc/init.d/mysql ]]; then
+        DB_SERVICE="mysql"
+    else
+        DB_SERVICE="mysql"
+    fi
+}
+
+# Check if MySQL/MariaDB is responsive
+is_db_running() {
+    mysqladmin ping -u root --silent 2>/dev/null
+}
+
+# Start the database service trying multiple methods (systemd → service → init.d → direct)
+start_db_service() {
+    # Already running?
+    if is_db_running; then
+        return 0
+    fi
+
+    # 1) systemd (works on most VMs / bare metal)
+    if command -v systemctl &>/dev/null && [[ -d /run/systemd/system ]]; then
+        info "Enabling and starting ${DB_SERVICE} via systemd…"
+        if timeout 30 systemctl enable --now "${DB_SERVICE}" 2>/dev/null; then
+            sleep 2
+            is_db_running && return 0
+        fi
+    fi
+
+    # 2) SysV / service wrapper (containers without systemd)
+    if command -v service &>/dev/null; then
+        info "Starting ${DB_SERVICE} via 'service' command…"
+        service "${DB_SERVICE}" start 2>/dev/null || true
+        sleep 2
+        is_db_running && return 0
+    fi
+
+    # 3) /etc/init.d
+    if [[ -x "/etc/init.d/${DB_SERVICE}" ]]; then
+        info "Starting ${DB_SERVICE} via /etc/init.d…"
+        "/etc/init.d/${DB_SERVICE}" start 2>/dev/null || true
+        sleep 2
+        is_db_running && return 0
+    fi
+
+    # 4) Direct daemon start (last-resort, e.g. unprivileged containers)
+    if command -v mysqld_safe &>/dev/null; then
+        info "Starting mysqld_safe in background…"
+        mkdir -p /var/run/mysqld /var/log/mysql
+        chown -R mysql:mysql /var/run/mysqld /var/log/mysql 2>/dev/null || true
+        nohup mysqld_safe --user=mysql >/var/log/mysql/mysqld_safe.log 2>&1 &
+        # Wait up to 30s for the socket to become responsive
+        for _ in $(seq 1 15); do
+            sleep 2
+            is_db_running && return 0
+        done
+    fi
+
+    return 1
+}
+
 setup_database() {
     info "Starting MySQL / MariaDB…"
-    systemctl enable --now mysql 2>/dev/null || systemctl enable --now mariadb
+    detect_db_service
+
+    if ! start_db_service; then
+        die "Could not start ${DB_SERVICE}. Check 'journalctl -u ${DB_SERVICE}' or '/var/log/mysql/error.log'."
+    fi
+    success "${DB_SERVICE} is running."
 
     DB_USER="vpn_panel_user"
     DB_PASS=$(generate_password)
@@ -186,10 +259,23 @@ NoNewPrivileges=yes
 WantedBy=multi-user.target
 UNIT
 
-    systemctl daemon-reload
-    systemctl enable powervpn
-    systemctl restart powervpn
-    success "Service started."
+    if command -v systemctl &>/dev/null && [[ -d /run/systemd/system ]]; then
+        systemctl daemon-reload
+        systemctl enable powervpn
+        systemctl restart powervpn
+        success "Service started via systemd."
+    else
+        warn "systemd not available; starting panel with nohup instead."
+        warn "Unit file written to ${SERVICE_FILE} for later use."
+        # shellcheck disable=SC1091
+        set -a; . "${INSTALL_DIR}/.env"; set +a
+        nohup sudo -u "$SERVICE_USER" -E \
+            "$(which node)" "${INSTALL_DIR}/node_modules/.bin/next" start \
+            -p "${PORT:-${PANEL_PORT}}" \
+            >>"${INSTALL_DIR}/logs/panel.log" 2>&1 &
+        sleep 2
+        success "Panel started in background (logs: ${INSTALL_DIR}/logs/panel.log)."
+    fi
 }
 
 # ── CLI management script ─────────────────────────────────────────────────────
