@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { encrypt } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,10 +66,10 @@ export async function POST(req: Request) {
         passwordHash = bcrypt.hashSync(password, 10);
       }
       if (cisco_password) {
-        ciscoHash = bcrypt.hashSync(cisco_password, 10);
+        ciscoHash = encrypt(cisco_password);
       }
       if (l2tp_password) {
-        l2tpHash = bcrypt.hashSync(l2tp_password, 10);
+        l2tpHash = encrypt(l2tp_password);
       }
       
       // Auto-generate UUID if not provided so they are ready for Xray

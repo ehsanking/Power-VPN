@@ -38,6 +38,7 @@ DB_NAME=${DB_NAME:-vpn}
 DB_USER="vpn_$(openssl rand -hex 4)"
 DB_PASS=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 16)
 MIGRATION_TOKEN=$(openssl rand -hex 24)
+ENCRYPTION_KEY=$(openssl rand -hex 32)
 
 # 3. System Updates & Dependencies
 echo -e "\e[1;32m📦 Updating system and installing dependencies...\e[0m"
@@ -94,6 +95,7 @@ PORT=3000
 ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$ADMIN_HASH
 MIGRATION_TOKEN=$MIGRATION_TOKEN
+ENCRYPTION_KEY=$ENCRYPTION_KEY
 EOF
 
 echo -e "\e[1;32m🛠 Building the application...\e[0m"
