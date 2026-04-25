@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=vpn_user
+      - MYSQL_PASSWORD=vpn_password
+      - MYSQL_DATABASE=vpn_db
+      - MYSQL_PORT=3306
+    depends_on:
+      - db
+  
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: vpn_db
+      MYSQL_USER: vpn_user
+      MYSQL_PASSWORD: vpn_password
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+volumes:
+  db_data:

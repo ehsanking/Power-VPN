@@ -1,0 +1,18 @@
+[Unit]
+Description=PowerVPN Service
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/powervpn
+ExecStart=/usr/bin/npm start
+Restart=always
+Environment=NODE_ENV=production
+Environment=MYSQL_HOST=localhost
+Environment=MYSQL_USER=vpn_user
+Environment=MYSQL_PASSWORD=your_password
+Environment=MYSQL_DATABASE=vpn_db
+
+[Install]
+WantedBy=multi-user.target

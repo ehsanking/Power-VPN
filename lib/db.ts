@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import logger from './logger';
 
 const poolConfig = {
   host: process.env.MYSQL_HOST,
@@ -16,7 +17,7 @@ const poolConfig = {
 
 // Log warning if config is missing
 if (!poolConfig.host || !poolConfig.user) {
-  console.warn('Database environment variables ARE MISSING. API calls will fail.');
+  logger.warn('Database environment variables ARE MISSING. API calls will fail.');
 }
 
 const pool = mysql.createPool(poolConfig);
@@ -28,7 +29,7 @@ export async function query<T = any>(sql: string, params?: any[]): Promise<T> {
     const [rows] = await pool.execute(sql, params);
     return rows as T;
   } catch (err: any) {
-    console.error('Database query error:', err.message);
+    logger.error({ err }, 'Database query error');
     throw err;
   }
 }
