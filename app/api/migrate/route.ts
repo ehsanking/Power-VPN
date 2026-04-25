@@ -33,10 +33,15 @@ export async function GET(request: NextRequest) {
     `ALTER TABLE vpn_users
      ADD COLUMN IF NOT EXISTS wg_privkey VARCHAR(255) NULL AFTER wg_pubkey;`,
 
-    `INSERT IGNORE INTO settings (\`key\`, \`value\`) VALUES
-     ('wgServerPubKey', ''),
-     ('wgPort', '51820'),
-     ('wgSubnet', '10.8.0.0/24');`,
+    // Seed WireGuard settings from environment (set by install.sh)
+    ...(process.env.WG_SERVER_PUBKEY ? [
+      `INSERT INTO settings (\`key\`, \`value\`) VALUES ('wgServerPubKey', '${process.env.WG_SERVER_PUBKEY}')
+       ON DUPLICATE KEY UPDATE \`value\` = IF(\`value\` = '' OR \`value\` IS NULL, '${process.env.WG_SERVER_PUBKEY}', \`value\`);`,
+    ] : []),
+    ...(process.env.WG_PORT ? [
+      `INSERT INTO settings (\`key\`, \`value\`) VALUES ('wgPort', '${process.env.WG_PORT}')
+       ON DUPLICATE KEY UPDATE \`value\` = IF(\`value\` = '' OR \`value\` IS NULL, '${process.env.WG_PORT}', \`value\`);`,
+    ] : []),
   ];
 
   const results: string[] = [];

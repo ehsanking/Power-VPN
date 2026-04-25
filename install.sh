@@ -8,6 +8,8 @@ SERVICE_USER="vpnpanel"
 SERVICE_FILE="/etc/systemd/system/powervpn.service"
 CRED_FILE="$INSTALL_DIR/.panel_credentials.txt"
 NODE_MAJOR=20
+WG_PORT=51820
+WG_IFACE="wg0"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
@@ -57,10 +59,10 @@ install_dependencies() {
     info "Installing system packages…"
     apt-get install -y -qq \
         curl git ca-certificates gnupg lsb-release \
-        mysql-server openssl ufw 2>/dev/null || \
+        mysql-server openssl ufw iptables 2>/dev/null || \
     apt-get install -y -qq \
         curl git ca-certificates gnupg \
-        mariadb-server openssl ufw
+        mariadb-server openssl ufw iptables
 
     # Node.js via NodeSource
     if ! command -v node &>/dev/null || [[ "$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')" -lt "$NODE_MAJOR" ]]; then
@@ -88,6 +90,50 @@ GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 SQL
     success "Database '${DB_NAME}' ready."
+}
+
+# ── WireGuard server setup ────────────────────────────────────────────────────
+install_wireguard() {
+    info "Installing WireGuard…"
+    apt-get install -y -qq wireguard wireguard-tools
+
+    # Generate server key pair
+    WG_SERVER_PRIVKEY=$(wg genkey)
+    WG_SERVER_PUBKEY=$(echo "$WG_SERVER_PRIVKEY" | wg pubkey)
+
+    # Detect primary network interface (for NAT)
+    NET_IFACE=$(ip route show default | awk '/default/ {print $5; exit}')
+
+    # Create server config
+    mkdir -p /etc/wireguard
+    cat > "/etc/wireguard/${WG_IFACE}.conf" <<WGCONF
+[Interface]
+Address = 10.8.0.1/24
+ListenPort = ${WG_PORT}
+PrivateKey = ${WG_SERVER_PRIVKEY}
+PostUp   = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o ${NET_IFACE} -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o ${NET_IFACE} -j MASQUERADE
+WGCONF
+    chmod 600 "/etc/wireguard/${WG_IFACE}.conf"
+
+    # Enable IP forwarding
+    echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-wireguard.conf
+    sysctl -p /etc/sysctl.d/99-wireguard.conf >/dev/null 2>&1
+
+    # Open WireGuard port in firewall
+    if command -v ufw &>/dev/null; then
+        ufw allow "${WG_PORT}/udp" >/dev/null 2>&1 || true
+    fi
+
+    # Allow the app user to run wg commands without password (for adding peers)
+    echo "${SERVICE_USER} ALL=(root) NOPASSWD: /usr/bin/wg, /usr/bin/wg-quick" \
+        > /etc/sudoers.d/powervpn-wg
+    chmod 440 /etc/sudoers.d/powervpn-wg
+
+    # Start WireGuard
+    systemctl enable --now "wg-quick@${WG_IFACE}"
+    success "WireGuard server started on port ${WG_PORT}."
+    success "Server public key: ${YELLOW}${WG_SERVER_PUBKEY}${NC}"
 }
 
 # ── Application install ───────────────────────────────────────────────────────
@@ -134,10 +180,13 @@ MIGRATION_TOKEN=${MIGRATION_TOKEN}
 PORT=${PANEL_PORT}
 NODE_ENV=production
 ALLOWED_ORIGINS=http://localhost:${PANEL_PORT}
+WG_SERVER_PUBKEY=${WG_SERVER_PUBKEY}
+WG_PORT=${WG_PORT}
+WG_IFACE=${WG_IFACE}
 ENV
     chmod 600 "$INSTALL_DIR/.env"
     chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/.env"
-    success ".env written."
+    success ".env written (includes WG_SERVER_PUBKEY)."
 }
 
 # ── Build Next.js ─────────────────────────────────────────────────────────────
@@ -155,6 +204,20 @@ run_schema() {
     success "Schema imported."
 }
 
+# ── Seed WireGuard public key into settings table ─────────────────────────────
+seed_wg_settings() {
+    info "Seeding WireGuard settings into database…"
+    mysql -u root "$DB_NAME" <<SQL
+INSERT INTO settings (\`key\`, \`value\`) VALUES ('wgServerPubKey', '${WG_SERVER_PUBKEY}')
+  ON DUPLICATE KEY UPDATE \`value\` = '${WG_SERVER_PUBKEY}';
+INSERT INTO settings (\`key\`, \`value\`) VALUES ('wgPort', '${WG_PORT}')
+  ON DUPLICATE KEY UPDATE \`value\` = '${WG_PORT}';
+INSERT INTO settings (\`key\`, \`value\`) VALUES ('wgIface', '${WG_IFACE}')
+  ON DUPLICATE KEY UPDATE \`value\` = '${WG_IFACE}';
+SQL
+    success "WireGuard settings seeded."
+}
+
 # ── Systemd service ───────────────────────────────────────────────────────────
 install_service() {
     info "Installing systemd service…"
@@ -164,7 +227,7 @@ install_service() {
     cat > "$SERVICE_FILE" <<UNIT
 [Unit]
 Description=Power VPN Management Panel
-After=network.target mysql.service mariadb.service
+After=network.target mysql.service mariadb.service wg-quick@${WG_IFACE}.service
 Wants=mysql.service mariadb.service
 
 [Service]
@@ -199,29 +262,32 @@ install_cli() {
     success "'powervpn' command installed. Run: powervpn"
 }
 
-# ── Save credentials ──────────────────────────────────────────────────────────
-save_credentials() {
-    cat > "$CRED_FILE" <<CRED
-====== Power VPN Panel Credentials ======
-Panel URL:        http://$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'):${PANEL_PORT}
-Admin Username:   ${ADMIN_USER}
-Admin Password:   ${ADMIN_PASS}
-Database User:    ${DB_USER}
-Database Pass:    ${DB_PASS}
-Database Name:    ${DB_NAME}
-Migration Token:  ${MIGRATION_TOKEN}
-==========================================
-CRED
-    chmod 600 "$CRED_FILE"
-    chown root:root "$CRED_FILE"
-}
-
 # ── Firewall ──────────────────────────────────────────────────────────────────
 configure_firewall() {
     if command -v ufw &>/dev/null; then
         ufw allow "$PANEL_PORT"/tcp >/dev/null 2>&1 || true
-        info "Firewall: port ${PANEL_PORT} opened."
+        info "Firewall: port ${PANEL_PORT}/tcp opened."
     fi
+}
+
+# ── Save credentials ──────────────────────────────────────────────────────────
+save_credentials() {
+    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    cat > "$CRED_FILE" <<CRED
+====== Power VPN Panel Credentials ======
+Panel URL:          http://${SERVER_IP}:${PANEL_PORT}
+Admin Username:     ${ADMIN_USER}
+Admin Password:     ${ADMIN_PASS}
+Database User:      ${DB_USER}
+Database Pass:      ${DB_PASS}
+Database Name:      ${DB_NAME}
+Migration Token:    ${MIGRATION_TOKEN}
+WireGuard PubKey:   ${WG_SERVER_PUBKEY}
+WireGuard Port:     ${WG_PORT}
+==========================================
+CRED
+    chmod 600 "$CRED_FILE"
+    chown root:root "$CRED_FILE"
 }
 
 # ── Final summary ─────────────────────────────────────────────────────────────
@@ -234,10 +300,11 @@ print_summary() {
     echo -e "  Panel URL:      ${CYAN}http://${SERVER_IP}:${PANEL_PORT}${NC}"
     echo -e "  Username:       ${YELLOW}${ADMIN_USER}${NC}"
     echo -e "  Password:       ${YELLOW}${ADMIN_PASS}${NC}"
+    echo -e "  WG PubKey:      ${YELLOW}${WG_SERVER_PUBKEY}${NC}"
     echo -e "  Credentials:    ${CRED_FILE}"
     echo -e "  Manage panel:   ${CYAN}powervpn${NC}"
     echo -e "${GREEN}======================================================${NC}"
-    echo -e "${RED}  Keep credentials safe and delete ${CRED_FILE} after saving!${NC}"
+    echo -e "${RED}  Keep ${CRED_FILE} safe and delete after saving!${NC}"
     echo
 }
 
@@ -246,12 +313,14 @@ main() {
     require_root
     collect_credentials
     install_dependencies
+    install_wireguard
     setup_database
     install_app
     hash_password
     write_env
     build_app
     run_schema
+    seed_wg_settings
     install_service
     install_cli
     configure_firewall

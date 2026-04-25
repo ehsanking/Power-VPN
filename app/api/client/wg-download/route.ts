@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import * as jose from 'jose';
+import { execSync } from 'child_process';
 import { query } from '@/lib/db';
 import { generateWgKeyPair, generateWgConfig, assignWgIp } from '@/lib/wg-generator';
 
@@ -65,34 +66,42 @@ export async function GET() {
     const settings: Record<string, string> = {};
     for (const row of settingRows) settings[row.key] = row.value;
 
-    const serverPubKey = settings['wgServerPubKey'];
+    // Prefer DB value; fall back to env var set by install.sh
+    const serverPubKey = settings['wgServerPubKey'] || process.env.WG_SERVER_PUBKEY || '';
     if (!serverPubKey) {
       return NextResponse.json(
-        { error: 'WireGuard server public key not configured. Set wgServerPubKey in Settings.' },
+        { error: 'WireGuard server public key not configured.' },
         { status: 503 }
       );
     }
 
-    // Pick first active WireGuard-capable server
+    const wgIface = process.env.WG_IFACE || 'wg0';
+
+    // Pick first active WireGuard-capable server; fall back to current host
     const servers = await query(
       'SELECT ip_address FROM vpn_servers WHERE supports_wireguard = TRUE AND status = "online" AND is_active = TRUE LIMIT 1'
     );
-    if (servers.length === 0) {
-      return NextResponse.json(
-        { error: 'No active WireGuard server found.' },
-        { status: 503 }
-      );
-    }
+    const serverEndpoint = servers[0]?.ip_address || '127.0.0.1';
 
-    const wgPort = parseInt(settings['wgPort'] || '51820', 10);
+    const wgPort = parseInt(settings['wgPort'] || process.env.WG_PORT || '51820', 10);
     const dns    = settings['defaultDns'] || '1.1.1.1';
+
+    // ── Register peer on the live WireGuard interface ────────────────────────
+    try {
+      execSync(`sudo wg set ${wgIface} peer ${wgPubKey} allowed-ips ${wgIp}/32`, {
+        timeout: 5000,
+        stdio: 'pipe',
+      });
+    } catch {
+      // Non-fatal: peer may already exist or sudo not available in dev
+    }
 
     // ── Generate .conf ────────────────────────────────────────────────────────
     const conf = generateWgConfig({
       clientPrivKey:  wgPrivKey,
       clientIp:       wgIp,
       serverPubKey,
-      serverEndpoint: servers[0].ip_address,
+      serverEndpoint,
       wgPort,
       dns,
     });
