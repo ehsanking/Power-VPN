@@ -8,10 +8,11 @@ export async function GET() {
     // Note: Migrations are handled centrally in /api/migrate now
     // Note: Auto-suspensions are handled by backend cron jobs
     
-    const users = await query('SELECT * FROM vpn_users ORDER BY id DESC');
+    const users = await query('SELECT id, username, custom_config, role, parent_id, status, traffic_limit_gb, traffic_total, traffic_up, traffic_down, max_connections, wg_pubkey, wg_ip, port, main_protocol, expires_at, created_at, last_connected FROM vpn_users ORDER BY id DESC');
     return NextResponse.json(users);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("GET users error:", error.message);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 

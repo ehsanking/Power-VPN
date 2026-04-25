@@ -15,7 +15,9 @@ export function ServerManagement() {
       if (!res.ok) return;
       const data = await res.json();
       if (!data.error) setServers(data);
-    } catch (e) {}
+    } catch (e: any) {
+      console.error(e.message);
+    }
     setLoading(false);
   };
 
@@ -41,7 +43,9 @@ export function ServerManagement() {
       });
       setNewServer({ name: '', ip_address: '', protocol: 'udp', port: 1194 });
       fetchServers();
-    } catch (e) {}
+    } catch (e: any) {
+      alert("Failed to add server: " + e.message);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -49,7 +53,9 @@ export function ServerManagement() {
     try {
       await fetch(`/api/servers?id=${id}`, { method: 'DELETE' });
       fetchServers();
-    } catch (e) {}
+    } catch (e: any) {
+      alert("Failed to delete server: " + e.message);
+    }
   };
 
   if (loading) return null;

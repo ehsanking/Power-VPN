@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import * as jose from 'jose';
 import { cookies } from 'next/headers';
+import { generateOvpnProfile } from '@/lib/ovpn-generator';
 
 export async function GET(req: Request) {
   try {
@@ -41,55 +42,16 @@ export async function GET(req: Request) {
     const server = servers[0];
     
     // Check if user has custom config
-    let userProtocol = 'udp';
+    let userConfig = {};
     if (user.custom_config) {
         try {
-            const parsed = JSON.parse(user.custom_config);
-            if (parsed.protocol) userProtocol = parsed.protocol;
-        } catch (e) {}
+            userConfig = JSON.parse(user.custom_config);
+        } catch (e: any) {
+            console.warn("Invalid custom_config JSON for user:", user.username, e.message);
+        }
     }
 
-    const remoteLine = server 
-        ? `remote ${server.ip_address} ${JSON.parse(server.ports || '[1194]')[0]}`
-        : `remote 45.12.99.1 1194`;
-
-    const profileContent = `client
-dev tun
-proto ${userProtocol}
-${remoteLine}
-resolv-retry infinite
-nobind
-persist-key
-persist-tun
-keepalive 10 60
-remote-cert-tls server
-auth SHA256
-cipher AES-256-GCM
-key-direction 1
-verb 3
-connect-retry 1
-connect-timeout 5
-
-<ca>
------BEGIN CERTIFICATE-----
-CA_CERT_HERE
------END CERTIFICATE-----
-</ca>
-<cert>
------BEGIN CERTIFICATE-----
-CLIENT_CERT_FOR_${user.username.toUpperCase()}
------END CERTIFICATE-----
-</cert>
-<key>
------BEGIN PRIVATE KEY-----
-CLIENT_KEY_FOR_${user.username.toUpperCase()}
------END PRIVATE KEY-----
-</key>
-<tls-auth>
------BEGIN OpenVPN Static key V1-----
-TLS_AUTH_KEY
------END OpenVPN Static key V1-----
-</tls-auth>`;
+    const profileContent = await generateOvpnProfile(user.username, server ? [server] : [], userConfig);
 
     return new NextResponse(profileContent, {
         headers: {
