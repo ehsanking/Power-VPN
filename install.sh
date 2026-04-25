@@ -47,6 +47,26 @@ collect_credentials() {
     read -rp "Enter Panel Port (default 3000): " PANEL_PORT
     PANEL_PORT=${PANEL_PORT:-3000}
     [[ "$PANEL_PORT" =~ ^[0-9]+$ ]] || PANEL_PORT=3000
+
+    DOMAIN=""
+    LE_EMAIL=""
+    read -rp "Use a domain with HTTPS (Let's Encrypt)? [y/N]: " USE_DOMAIN
+    if [[ "${USE_DOMAIN,,}" == "y" || "${USE_DOMAIN,,}" == "yes" ]]; then
+        while true; do
+            read -rp "Enter your domain (e.g. panel.example.com): " DOMAIN
+            if [[ "$DOMAIN" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]]; then
+                break
+            fi
+            warn "Invalid domain format. Try again."
+        done
+        while true; do
+            read -rp "Enter email for Let's Encrypt notifications: " LE_EMAIL
+            if [[ "$LE_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
+                break
+            fi
+            warn "Invalid email. Try again."
+        done
+    fi
 }
 
 # ── System dependencies ───────────────────────────────────────────────────────
@@ -69,6 +89,13 @@ install_dependencies() {
         apt-get install -y -qq nodejs
     fi
     success "Node.js $(node -v) ready."
+
+    # Nginx + Certbot when a domain is configured
+    if [[ -n "$DOMAIN" ]]; then
+        info "Installing nginx and certbot for ${DOMAIN}…"
+        apt-get install -y -qq nginx certbot python3-certbot-nginx
+        success "nginx + certbot installed."
+    fi
 }
 
 # ── MySQL setup ───────────────────────────────────────────────────────────────
@@ -195,6 +222,12 @@ write_env() {
     JWT_SECRET=$(generate_secret)
     MIGRATION_TOKEN=$(generate_secret)
 
+    if [[ -n "$DOMAIN" ]]; then
+        ALLOWED_ORIGINS="https://${DOMAIN},http://localhost:${PANEL_PORT}"
+    else
+        ALLOWED_ORIGINS="http://localhost:${PANEL_PORT}"
+    fi
+
     cat > "$INSTALL_DIR/.env" <<ENV
 MYSQL_HOST=localhost
 MYSQL_USER=${DB_USER}
@@ -206,7 +239,7 @@ JWT_SECRET=${JWT_SECRET}
 MIGRATION_TOKEN=${MIGRATION_TOKEN}
 PORT=${PANEL_PORT}
 NODE_ENV=production
-ALLOWED_ORIGINS=http://localhost:${PANEL_PORT}
+ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
 ENV
     chmod 600 "$INSTALL_DIR/.env"
     chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/.env"
@@ -278,6 +311,76 @@ UNIT
     fi
 }
 
+# ── Nginx reverse proxy + Let's Encrypt ───────────────────────────────────────
+reload_nginx() {
+    if command -v systemctl &>/dev/null && [[ -d /run/systemd/system ]]; then
+        systemctl enable --now nginx >/dev/null 2>&1 || true
+        systemctl reload nginx 2>/dev/null || systemctl restart nginx
+    elif command -v service &>/dev/null; then
+        service nginx start 2>/dev/null || true
+        service nginx reload 2>/dev/null || service nginx restart
+    else
+        nginx -s reload 2>/dev/null || nginx
+    fi
+}
+
+setup_domain_ssl() {
+    [[ -z "$DOMAIN" ]] && return 0
+
+    info "Configuring nginx reverse proxy for ${DOMAIN}…"
+
+    # DNS sanity check (best effort)
+    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    DOMAIN_IP=$(getent hosts "$DOMAIN" | awk '{print $1}' | head -n1)
+    if [[ -n "$DOMAIN_IP" && -n "$SERVER_IP" && "$DOMAIN_IP" != "$SERVER_IP" ]]; then
+        warn "DNS for ${DOMAIN} resolves to ${DOMAIN_IP}, but server IP is ${SERVER_IP}."
+        warn "Let's Encrypt may fail until you point an A record at ${SERVER_IP}."
+    fi
+
+    NGINX_VHOST="/etc/nginx/sites-available/powervpn.conf"
+    cat > "$NGINX_VHOST" <<NGINX
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN};
+
+    client_max_body_size 25m;
+
+    location / {
+        proxy_pass http://127.0.0.1:${PANEL_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 300s;
+    }
+}
+NGINX
+
+    ln -sf "$NGINX_VHOST" /etc/nginx/sites-enabled/powervpn.conf
+    rm -f /etc/nginx/sites-enabled/default
+
+    if ! nginx -t 2>/dev/null; then
+        die "nginx config test failed. Inspect ${NGINX_VHOST}."
+    fi
+    reload_nginx
+    success "nginx reverse proxy active on port 80 for ${DOMAIN}."
+
+    info "Requesting Let's Encrypt certificate for ${DOMAIN}…"
+    if certbot --nginx -d "$DOMAIN" -m "$LE_EMAIL" --agree-tos --redirect --non-interactive 2>&1 | tail -10; then
+        success "HTTPS enabled — https://${DOMAIN}"
+        PANEL_URL="https://${DOMAIN}"
+    else
+        warn "Certbot failed. The panel is still reachable at http://${DOMAIN} (port 80)."
+        warn "Common causes: DNS not propagated, port 80 blocked, or rate-limit reached."
+        warn "Re-run later with: certbot --nginx -d ${DOMAIN} -m ${LE_EMAIL} --agree-tos --redirect"
+        PANEL_URL="http://${DOMAIN}"
+    fi
+}
+
 # ── CLI management script ─────────────────────────────────────────────────────
 install_cli() {
     cp "$INSTALL_DIR/powervpn.sh" /usr/local/bin/powervpn
@@ -287,9 +390,12 @@ install_cli() {
 
 # ── Save credentials ──────────────────────────────────────────────────────────
 save_credentials() {
+    if [[ -z "${PANEL_URL:-}" ]]; then
+        PANEL_URL="http://$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'):${PANEL_PORT}"
+    fi
     cat > "$CRED_FILE" <<CRED
 ====== Power VPN Panel Credentials ======
-Panel URL:        http://$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'):${PANEL_PORT}
+Panel URL:        ${PANEL_URL}
 Admin Username:   ${ADMIN_USER}
 Admin Password:   ${ADMIN_PASS}
 Database User:    ${DB_USER}
@@ -304,7 +410,15 @@ CRED
 
 # ── Firewall ──────────────────────────────────────────────────────────────────
 configure_firewall() {
-    if command -v ufw &>/dev/null; then
+    command -v ufw &>/dev/null || return 0
+
+    if [[ -n "$DOMAIN" ]]; then
+        ufw allow 80/tcp  >/dev/null 2>&1 || true
+        ufw allow 443/tcp >/dev/null 2>&1 || true
+        # Panel port is reachable only via nginx → close it from the public
+        ufw delete allow "$PANEL_PORT"/tcp >/dev/null 2>&1 || true
+        info "Firewall: ports 80 + 443 opened, ${PANEL_PORT} kept private."
+    else
         ufw allow "$PANEL_PORT"/tcp >/dev/null 2>&1 || true
         info "Firewall: port ${PANEL_PORT} opened."
     fi
@@ -312,12 +426,15 @@ configure_firewall() {
 
 # ── Final summary ─────────────────────────────────────────────────────────────
 print_summary() {
-    SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    if [[ -z "${PANEL_URL:-}" ]]; then
+        SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+        PANEL_URL="http://${SERVER_IP}:${PANEL_PORT}"
+    fi
     echo
     echo -e "${GREEN}======================================================${NC}"
     echo -e "${GREEN}   Power VPN Panel installed successfully!${NC}"
     echo -e "${GREEN}======================================================${NC}"
-    echo -e "  Panel URL:      ${CYAN}http://${SERVER_IP}:${PANEL_PORT}${NC}"
+    echo -e "  Panel URL:      ${CYAN}${PANEL_URL}${NC}"
     echo -e "  Username:       ${YELLOW}${ADMIN_USER}${NC}"
     echo -e "  Password:       ${YELLOW}${ADMIN_PASS}${NC}"
     echo -e "  Credentials:    ${CRED_FILE}"
@@ -339,6 +456,7 @@ main() {
     build_app
     run_schema
     install_service
+    setup_domain_ssl
     install_cli
     configure_firewall
     save_credentials
