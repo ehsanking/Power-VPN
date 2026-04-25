@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import * as jose from 'jose';
 import { cookies } from 'next/headers';
 import { generateOvpnProfile } from '@/lib/ovpn-generator';
+import { getOrGeneratePki, getOrGenerateClientCert } from '@/lib/pki-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +16,8 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL('/client', req.url));
     }
 
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-        throw new Error("JWT_SECRET missing or too short");
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 64) {
+        throw new Error("JWT_SECRET missing or too weak");
     }
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
@@ -47,13 +48,22 @@ export async function GET(req: Request) {
     let userConfig = {};
     if (user.custom_config) {
         try {
-            userConfig = JSON.parse(user.custom_config);
+            userConfig = typeof user.custom_config === 'string' ? JSON.parse(user.custom_config) : user.custom_config;
         } catch (e: any) {
             console.warn("Invalid custom_config JSON for user:", user.username, e.message);
         }
     }
 
-    const profileContent = await generateOvpnProfile(user.username, server ? [server] : [], userConfig);
+    // Get PKI data
+    const { caCertPem, caKeyPem, tlsAuthKey } = await getOrGeneratePki();
+    const { clientCertPem, clientKeyPem } = await getOrGenerateClientCert(user.username, caCertPem, caKeyPem);
+
+    const profileContent = generateOvpnProfile(user.username, server ? [server] : [], {
+        caCertPem,
+        tlsAuthKey,
+        clientCertPem,
+        clientKeyPem
+    }, userConfig);
 
     return new NextResponse(profileContent, {
         headers: {
@@ -63,6 +73,7 @@ export async function GET(req: Request) {
     });
 
   } catch (error: any) {
+    console.error('Download error:', error);
     return NextResponse.redirect(new URL('/client', req.url));
   }
 }

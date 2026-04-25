@@ -22,6 +22,7 @@ import DashboardView from '@/components/views/dashboard-view';
 import UsersView from '@/components/views/users-view';
 import SessionsView from '@/components/views/sessions-view';
 import SettingsView from '@/components/views/settings-view';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 type View = 'dashboard' | 'users' | 'sessions' | 'settings';
 
@@ -258,10 +259,12 @@ export default function Home() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeView === 'dashboard' && <DashboardView />}
-              {activeView === 'users' && <UsersView />}
-              {activeView === 'sessions' && <SessionsView />}
-              {activeView === 'settings' && <SettingsView />}
+              <ErrorBoundary>
+                {activeView === 'dashboard' && <DashboardView />}
+                {activeView === 'users' && <UsersView />}
+                {activeView === 'sessions' && <SessionsView />}
+                {activeView === 'settings' && <SettingsView />}
+              </ErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </div>

@@ -1,13 +1,26 @@
-import { query } from '@/lib/db';
+import { query as defaultQuery } from '@/lib/db';
 import { headers } from 'next/headers';
 
-export async function auditLog(action: string, actor: string, target: string, metadata: any) {
-    const h = await headers();
-    const ip = h.get('x-forwarded-for') || 'unknown';
-    const userAgent = h.get('user-agent') || 'unknown';
+export async function auditLog(
+    action: string, 
+    actor: string, 
+    target: string, 
+    metadata: any,
+    dbQuery = defaultQuery
+) {
+    let ip = 'unknown';
+    let userAgent = 'unknown';
 
     try {
-        await query(
+        const h = await headers();
+        ip = h.get('x-forwarded-for') || 'unknown';
+        userAgent = h.get('user-agent') || 'unknown';
+    } catch (e) {
+        // Headers might not be available in some contexts (e.g. background tasks)
+    }
+
+    try {
+        await dbQuery(
             'INSERT INTO logs (action, actor, target, metadata, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)',
             [action, actor, target, JSON.stringify(metadata), ip, userAgent]
         );
