@@ -3,6 +3,8 @@
 set -Eeuo pipefail
 
 REPO_URL="https://github.com/ehsanking/Power-VPN.git"
+# Branch to install from. Override with: POWERVPN_BRANCH=foo bash <(curl …)
+REPO_BRANCH="${POWERVPN_BRANCH:-main}"
 INSTALL_DIR="/opt/powervpn"
 SERVICE_USER="vpnpanel"
 SERVICE_FILE="/etc/systemd/system/powervpn.service"
@@ -243,19 +245,25 @@ install_app() {
     id "$SERVICE_USER" &>/dev/null || useradd --system --shell /usr/sbin/nologin --home "$INSTALL_DIR" "$SERVICE_USER"
 
     if [[ -d "$INSTALL_DIR/.git" ]]; then
-        info "Updating existing installation in ${INSTALL_DIR}…"
-        git -C "$INSTALL_DIR" pull origin main
+        info "Updating existing installation in ${INSTALL_DIR} (branch: ${REPO_BRANCH})…"
+        git -C "$INSTALL_DIR" fetch origin "$REPO_BRANCH"
+        git -C "$INSTALL_DIR" checkout "$REPO_BRANCH"
+        git -C "$INSTALL_DIR" pull origin "$REPO_BRANCH"
     else
-        info "Cloning repository to ${INSTALL_DIR}…"
+        info "Cloning ${REPO_BRANCH} into ${INSTALL_DIR}…"
         rm -rf "$INSTALL_DIR"
-        git clone "$REPO_URL" "$INSTALL_DIR"
+        git clone --branch "$REPO_BRANCH" --single-branch "$REPO_URL" "$INSTALL_DIR"
     fi
 
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
+    # NOTE: do NOT pass --omit=dev — Next.js build needs tailwindcss/postcss
+    # and TypeScript, which live in devDependencies. We prune after build.
     info "Installing npm dependencies (this may take a few minutes)…"
     cd "$INSTALL_DIR"
-    sudo -u "$SERVICE_USER" npm install --omit=dev --prefer-offline 2>&1 | tail -5
+    if ! sudo -u "$SERVICE_USER" npm install --no-audit --no-fund --prefer-offline 2>&1 | tail -20; then
+        die "npm install failed."
+    fi
     success "Dependencies installed."
 }
 
