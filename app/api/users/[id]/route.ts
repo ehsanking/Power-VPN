@@ -1,80 +1,139 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import bcrypt from 'bcryptjs';
-import { auditLog } from '@/lib/audit-logger';
 import { z } from 'zod';
-import { handleApiError } from '@/lib/api-utils';
-
-export const dynamic = 'force-dynamic';
+import pool from '@/lib/db';
+import { auditLog } from '@/lib/audit-logger';
 
 const UpdateUserSchema = z.object({
-  username: z.string().min(3).max(63).regex(/^[a-zA-Z0-9._-]+$/).optional(),
-  password: z.string().min(8).optional().nullable(),
-  status: z.enum(['active', 'inactive', 'suspended', 'revoked']).optional(),
-  traffic_limit_gb: z.number().optional(),
-  expires_at: z.string().optional().nullable(),
-  role: z.enum(['user', 'admin']).optional(),
+  role: z.enum(['admin', 'user', 'reseller']).optional(),
+  status: z.enum(['active', 'disabled']).optional(),
+}).refine(data => data.role || data.status, {
+  message: "At least one field must be provided for update"
 });
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
-    const body = await req.json();
-    const validated = UpdateUserSchema.parse(body);
-    
-    let sql = 'UPDATE vpn_users SET ';
-    const updates: string[] = [];
-    const values: any[] = [];
+    const [rows]: any = await pool.execute(
+      'SELECT id, username, role, status, created_at FROM vpn_users WHERE id = ?',
+      [id]
+    );
 
-    if (validated.username) {
-        updates.push('username = ?');
-        values.push(validated.username);
-    }
-    if (validated.password) {
-        updates.push('password_hash = ?');
-        updates.push('password_changed_at = CURRENT_TIMESTAMP');
-        values.push(await bcrypt.hash(validated.password, 10));
-    }
-    if (validated.status) {
-        updates.push('status = ?');
-        values.push(validated.status);
-    }
-    if (validated.traffic_limit_gb !== undefined) {
-        updates.push('traffic_limit_gb = ?');
-        values.push(validated.traffic_limit_gb);
-    }
-    if (validated.expires_at !== undefined) {
-        updates.push('expires_at = ?');
-        values.push(validated.expires_at);
-    }
-    if (validated.role) {
-        updates.push('role = ?');
-        values.push(validated.role);
+    if (rows.length === 0) {
+      return NextResponse.json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'User not found'
+        }
+      }, { status: 404 });
     }
 
-    if (updates.length === 0) {
-        return NextResponse.json({ message: 'No changes provided' });
-    }
-
-    sql += updates.join(', ') + ' WHERE id = ?';
-    values.push(id);
-
-    await query(sql, values);
-    await auditLog('update_user', 'admin', id, validated);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return handleApiError(error);
+    return NextResponse.json({ data: rows[0] });
+  } catch (error: any) {
+    return NextResponse.json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch user',
+        details: error.message
+      }
+    }, { status: 500 });
   }
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-    try {
-        const { id } = await params;
-        const users = await query('SELECT id, username, role, status, traffic_limit_gb, traffic_total, expires_at, created_at, last_connected FROM vpn_users WHERE id = ?', [id]);
-        if (users.length === 0) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        return NextResponse.json(users[0]);
-    } catch (error) {
-        return handleApiError(error);
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const validatedData = UpdateUserSchema.safeParse(body);
+
+    if (!validatedData.success) {
+      return NextResponse.json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid update data',
+          details: validatedData.error.format()
+        }
+      }, { status: 400 });
     }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (validatedData.data.role) {
+      updates.push('role = ?');
+      values.push(validatedData.data.role);
+    }
+    if (validatedData.data.status) {
+      updates.push('status = ?');
+      values.push(validatedData.data.status);
+    }
+
+    values.push(id);
+
+    const [result]: any = await pool.execute(
+      `UPDATE vpn_users SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'User not found'
+        }
+      }, { status: 404 });
+    }
+
+    await auditLog(null, 'USER_UPDATED', `User ${id} updated with ${JSON.stringify(validatedData.data)}`);
+
+    return NextResponse.json({ message: 'User updated successfully' });
+  } catch (error: any) {
+    return NextResponse.json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to update user',
+        details: error.message
+      }
+    }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const [result]: any = await pool.execute(
+      'DELETE FROM vpn_users WHERE id = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'User not found'
+        }
+      }, { status: 404 });
+    }
+
+    await auditLog(null, 'USER_DELETED', `User ${id} deleted`);
+
+    return NextResponse.json({ message: 'User deleted successfully' });
+  } catch (error: any) {
+    return NextResponse.json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to delete user',
+        details: error.message
+      }
+    }, { status: 500 });
+  }
 }

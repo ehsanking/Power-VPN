@@ -1,19 +1,23 @@
 import { NextResponse } from 'next/server';
-import { generateOvpnProfile } from '@/lib/ovpn-generator';
-import { query } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
-
-export async function POST(req: Request) {
+export async function GET() {
   try {
-    const { username, config } = await req.json();
-    if (!username) return NextResponse.json({ error: "Missing username" }, { status: 400 });
+    const adminProfileData = JSON.stringify({ name: "Admin", role: "superadmin" }, null, 2);
+    const filename = "admin_profile.json";
 
-    const servers = await query('SELECT * FROM vpn_servers WHERE is_active = TRUE');
-    const profile = await generateOvpnProfile(username, servers, config);
-
-    return NextResponse.json({ profile });
+    return new Response(adminProfileData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({
+      error: {
+        code: 'DOWNLOAD_FAILED',
+        message: 'Failed to generate profile download',
+        details: error.message
+      }
+    }, { status: 500 });
   }
 }
