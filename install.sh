@@ -24,7 +24,7 @@ generate_password() {
 }
 
 generate_secret() {
-    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 48
+    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 64
 }
 
 # ── Collect admin credentials ─────────────────────────────────────────────────

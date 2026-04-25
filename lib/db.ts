@@ -74,6 +74,11 @@ const poolProxy = {
   }
 };
 
+export const query = async (sql: string, params: any[] = []): Promise<any[]> => {
+  const [rows] = await poolProxy.execute(sql, params);
+  return rows as any[];
+};
+
 export async function validateConnection() {
   if (isMockInitial) return;
   

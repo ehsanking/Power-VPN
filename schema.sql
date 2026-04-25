@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS vpn_users (
     expires_at TIMESTAMP NULL,
     last_connected TIMESTAMP NULL,
     traffic_total BIGINT DEFAULT 0,
+    traffic_up BIGINT DEFAULT 0,
+    traffic_down BIGINT DEFAULT 0,
     traffic_limit_gb INT DEFAULT 10,
     max_connections INT DEFAULT 1,
     cisco_password VARCHAR(255) NULL,
@@ -52,6 +54,8 @@ CREATE TABLE IF NOT EXISTS vpn_servers (
     bandwidth_ingress INT DEFAULT 0, -- in Mbps or similar
     bandwidth_egress INT DEFAULT 0,
     latency_ms INT DEFAULT 0,
+    connected_clients INT DEFAULT 0,
+    last_check TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

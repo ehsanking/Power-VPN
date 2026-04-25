@@ -8,7 +8,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { id } = await params;
     
     // Revocation logic
-    await query('UPDATE vpn_users SET status = ? WHERE id = ?', ['revoked', id]);
+    await query('UPDATE vpn_users SET status = ? WHERE id = ?', ['suspended', id]);
     await auditLog('revoke_user', 'admin', id, { id });
     
     // Stub for CRL broadcast/trigger

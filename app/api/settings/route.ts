@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { z } from 'zod';
 import { handleApiError } from '@/lib/api-utils';
+import { auditLog } from '@/lib/audit-logger';
 
 export const dynamic = 'force-dynamic';
 

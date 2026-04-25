@@ -7,7 +7,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Defect 48: Resource limits
     deploy:
       resources:
         limits:
@@ -20,7 +19,12 @@ services:
     image: mysql:8.0
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-vpn_panel}
+      MYSQL_USER: ${MYSQL_USER:-vpn_panel_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -31,3 +35,6 @@ services:
         limits:
           cpus: '0.5'
           memory: 1024M
+
+volumes:
+  db_data:

@@ -1,18 +1,12 @@
 import { headers } from 'next/headers';
-import pool from './db';
-
-interface AuditLogOptions {
-  dbQuery?: any;
-}
+import { query } from './db';
 
 export async function auditLog(
-  userId: number | string | null,
   action: string,
-  details: string,
-  options: AuditLogOptions = {}
+  actor: string,
+  target: string,
+  context: Record<string, any> = {}
 ) {
-  const query = options.dbQuery || pool;
-  
   let ipAddress = 'unknown';
   let userAgent = 'unknown';
 
@@ -20,15 +14,18 @@ export async function auditLog(
     const head = await headers();
     ipAddress = head.get('x-forwarded-for') || head.get('x-real-ip') || 'unknown';
     userAgent = head.get('user-agent') || 'unknown';
-  } catch (error) {
-    // Headers might not be available in background tasks or certain contexts
-    console.warn('Could not retrieve headers for audit log:', error);
+  } catch {
+    // Headers not available in background tasks
   }
 
   try {
-    await query.execute(
-      'INSERT INTO logs (user_id, action, details, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-      [userId, action, details, ipAddress, userAgent]
+    await query(
+      'INSERT INTO logs (level, message, context, created_at) VALUES (?, ?, ?, NOW())',
+      [
+        'info',
+        `[${action}] actor=${actor} target=${target}`,
+        JSON.stringify({ action, actor, target, ipAddress, userAgent, ...context }),
+      ]
     );
   } catch (error) {
     console.error('Failed to write audit log:', error);

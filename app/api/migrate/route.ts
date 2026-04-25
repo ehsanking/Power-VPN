@@ -1,43 +1,45 @@
 import { NextResponse } from 'next/server';
+import { type NextRequest } from 'next/server';
 import pool from '@/lib/db';
 
-export async function GET() {
-  try {
-    const migrations = [
-      // 28: Add user_id to logs and foreign key
-      `ALTER TABLE logs 
-       ADD COLUMN IF NOT EXISTS user_id INT,
-       ADD FOREIGN KEY IF NOT EXISTS (user_id) REFERENCES vpn_users(id) ON DELETE SET NULL;`,
-
-      // 29: Unify traffic naming
-      `ALTER TABLE vpn_users 
-       CHANGE COLUMN IF EXISTS traffic_up traffic_uploaded_bytes BIGINT DEFAULT 0,
-       CHANGE COLUMN IF EXISTS traffic_down traffic_downloaded_bytes BIGINT DEFAULT 0;`,
-
-      // 30: JSON indexes (using generated columns for portability)
-      `ALTER TABLE vpn_users 
-       ADD COLUMN IF NOT EXISTS config_server_name VARCHAR(255) GENERATED ALWAYS AS (custom_config->>'$.server_name') VIRTUAL,
-       ADD INDEX IF NOT EXISTS idx_config_server_name (config_server_name);`,
-
-      // 31: Settings table improvements
-      `ALTER TABLE settings 
-       ADD COLUMN IF NOT EXISTS value_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
-       ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN DEFAULT FALSE;`,
-
-      // 32: Parent ID index
-      `ALTER TABLE vpn_users ADD INDEX IF NOT EXISTS idx_parent_id (parent_id);`
-    ];
-
-    for (const sql of migrations) {
-      try {
-        await pool.execute(sql);
-      } catch (err: any) {
-        console.warn('Migration step failed (might already exist):', err.message);
-      }
-    }
-
-    return NextResponse.json({ message: 'Migrations completed' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+export async function GET(request: NextRequest) {
+  const token = request.headers.get('x-migration-token');
+  if (!token || !process.env.MIGRATION_TOKEN || token !== process.env.MIGRATION_TOKEN) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const migrations = [
+    `ALTER TABLE logs
+     ADD COLUMN IF NOT EXISTS user_id INT,
+     ADD COLUMN IF NOT EXISTS action VARCHAR(255),
+     ADD COLUMN IF NOT EXISTS details TEXT,
+     ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45),
+     ADD COLUMN IF NOT EXISTS user_agent TEXT;`,
+
+    `ALTER TABLE vpn_users
+     ADD COLUMN IF NOT EXISTS traffic_up BIGINT DEFAULT 0,
+     ADD COLUMN IF NOT EXISTS traffic_down BIGINT DEFAULT 0;`,
+
+    `ALTER TABLE vpn_servers
+     ADD COLUMN IF NOT EXISTS connected_clients INT DEFAULT 0,
+     ADD COLUMN IF NOT EXISTS last_check TIMESTAMP NULL;`,
+
+    `ALTER TABLE settings
+     ADD COLUMN IF NOT EXISTS value_type ENUM('string','number','boolean','json') DEFAULT 'string',
+     ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN DEFAULT FALSE;`,
+
+    `ALTER TABLE vpn_users ADD INDEX IF NOT EXISTS idx_parent_id (parent_id);`,
+  ];
+
+  const results: string[] = [];
+  for (const sql of migrations) {
+    try {
+      await pool.execute(sql);
+      results.push('ok');
+    } catch (err: any) {
+      results.push(`warn: ${err.message}`);
+    }
+  }
+
+  return NextResponse.json({ message: 'Migrations completed', results });
 }

@@ -33,9 +33,10 @@ export default function DashboardView() {
           fetchJson('/api/users'),
           fetchJson('/api/servers/stats')
         ]);
-        
+
         if (statsRes && !statsRes.error) setStats(statsRes);
-        if (Array.isArray(usersRes)) setUsers(usersRes);
+        // /api/users returns { data: [], pagination: {} }
+        if (usersRes?.data && Array.isArray(usersRes.data)) setUsers(usersRes.data);
         if (Array.isArray(serversRes)) setServers(serversRes);
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);

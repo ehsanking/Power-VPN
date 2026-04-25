@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import pool from '@/lib/db';
 import { auditLog } from '@/lib/audit-logger';
 
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     const { page, limit, search } = validatedQuery.data;
     const offset = (page - 1) * limit;
 
-    let sql = 'SELECT id, username, role, created_at FROM vpn_users';
+    let sql = 'SELECT id, username, role, status, created_at FROM vpn_users';
     let countSql = 'SELECT COUNT(*) as total FROM vpn_users';
     const params: any[] = [];
 
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
     params.push(limit, offset);
 
     const [rows] = await pool.execute(sql, params);
-    const [countResult]: any = await pool.execute(countSql, params.slice(0, 1));
+    const [countResult]: any = await pool.execute(countSql, params.slice(0, search ? 1 : 0));
     const total = countResult[0].total;
 
     return NextResponse.json({
@@ -86,14 +87,14 @@ export async function POST(request: Request) {
     }
 
     const { username, password, role } = validatedData.data;
+    const password_hash = await bcrypt.hash(password, 12);
 
-    // In a real app, hash password here
     const [result]: any = await pool.execute(
-      'INSERT INTO vpn_users (username, password, role, created_at) VALUES (?, ?, ?, NOW())',
-      [username, password, role]
+      'INSERT INTO vpn_users (username, password_hash, role, created_at) VALUES (?, ?, ?, NOW())',
+      [username, password_hash, role]
     );
 
-    await auditLog(null, 'USER_CREATED', `User ${username} created with role ${role}`);
+    await auditLog('USER_CREATED', 'admin', username, { role });
 
     return NextResponse.json({
       data: {
