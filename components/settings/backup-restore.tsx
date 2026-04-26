@@ -23,7 +23,7 @@ export function BackupRestore() {
             } else {
                 setMessage('Backup failed.');
             }
-        } catch (e) {
+        } catch {
             setMessage('Backup failed.');
         }
         setLoading(false);
@@ -56,7 +56,7 @@ export function BackupRestore() {
             } else {
                 setMessage('Restore failed on server.');
             }
-        } catch (e) {
+        } catch {
             setMessage('Invalid backup file.');
         }
         setLoading(false);

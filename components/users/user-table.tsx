@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Download, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { formatTraffic } from '@/lib/utils';
 
 export interface VpnUser {

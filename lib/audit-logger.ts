@@ -13,7 +13,8 @@ export async function auditLog(
   options: AuditLogOptions = {}
 ) {
   const query = options.dbQuery || pool;
-  const { dbQuery, ...contextParams } = options;
+  const contextParams = { ...options };
+  delete contextParams.dbQuery;
   
   let ipAddress = 'unknown';
   let userAgent = 'unknown';

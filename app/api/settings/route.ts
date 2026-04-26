@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       if (rule) {
           try {
               rule.parse(value);
-          } catch(e) {
+          } catch {
               throw new Error(`Invalid value for ${key}`);
           }
       }

@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 
 // Generates an initial array of fake data points for the mini charts
 const generateChartData = (length: number, max: number) => 
-  Array.from({ length }).map((_, i) => ({ value: Math.floor(Math.random() * max) }));
+  Array.from({ length }).map(() => ({ value: Math.floor(Math.random() * max) }));
 
 export default function DashboardView() {
   const [stats, setStats] = useState<any>(null);

@@ -93,7 +93,7 @@ export default function SettingsView() {
       a.href = url;
       a.download = `vpn-panel-backup-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
-    } catch (_err) {
+    } catch {
       alert("Snapshot generation failed");
     }
   };
@@ -120,7 +120,7 @@ export default function SettingsView() {
         } else {
           alert("Restore rejected: " + result.error);
         }
-      } catch (_err) {
+      } catch {
         alert("Invalid snapshot format");
       }
     };

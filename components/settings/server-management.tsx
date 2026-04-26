@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Server, Plus, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
 
 export function ServerManagement() {
   const [servers, setServers] = useState<any[]>([]);

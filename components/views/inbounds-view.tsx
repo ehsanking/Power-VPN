@@ -31,7 +31,7 @@ export default function InboundsView() {
       if (data.inbounds) {
         setInbounds(data.inbounds);
       }
-    } catch (_error) {
+    } catch {
       toast.error('Failed to load inbounds');
     } finally {
       setIsLoading(false);
@@ -63,7 +63,7 @@ export default function InboundsView() {
       setRemark('');
       setIsAdding(false);
       fetchInbounds();
-    } catch (_error) {
+    } catch {
       toast.error('Failed to create inbound');
     }
   };

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Shield, Download, MapPin, Activity, QrCode, Zap, CopyIcon, Wifi, AlertTriangle } from 'lucide-react';
+import { Download, MapPin, Activity, QrCode, Zap, CopyIcon, Wifi, AlertTriangle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function ClientPortal() {
@@ -64,7 +64,6 @@ export default function ClientPortal() {
 
   if (user) {
     const isSuspended = user.status !== 'active';
-    const hasRemainingTraffic = user.traffic < user.limit * 1024 * 1024 * 1024;
 
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">

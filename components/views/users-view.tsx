@@ -44,7 +44,7 @@ export function UsersView() {
       a.href = url;
       a.download = `${username}.ovpn`;
       a.click();
-    } catch (_err) {
+    } catch {
       toast.error(`Unable to generate config for ${username}`);
     } finally {
       setDownloading(null);
@@ -62,7 +62,7 @@ export function UsersView() {
       if (!res.ok) throw new Error();
       loadUsers();
       toast.success(`User ${newStatus === 'active' ? 'enabled' : 'disabled'}`);
-    } catch (_err) {
+    } catch {
       toast.error('Failed to change status');
     }
   };
@@ -74,7 +74,7 @@ export function UsersView() {
       if (!res.ok) throw new Error();
       loadUsers();
       toast.success('User deleted successfully');
-    } catch (_err) {
+    } catch {
       toast.error('Failed to delete user');
     }
   };

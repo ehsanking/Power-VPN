@@ -27,7 +27,7 @@ export async function GET() {
                 isAdmin: true 
                 });
           }
-      } catch (e) {
+      } catch {
           // Token invalid, fallthrough
       }
   }
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     let isPasswordValid = false;
     try {
         isPasswordValid = await bcrypt.compare(password, ADMIN_PASS_HASH);
-    } catch(e) {
+    } catch {
         return NextResponse.json({ error: 'Invalid password format' }, { status: 400 });
     }
 

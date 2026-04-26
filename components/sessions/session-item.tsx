@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Terminal, Globe, XCircle } from 'lucide-react';
 import { motion } from 'motion/react';
-import { toast } from 'sonner';
 
 interface Session {
   id: number;
