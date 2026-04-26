@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { ArrowUp, ArrowDown } from 'lucide-react';
+import { motion } from 'motion/react';
 
 // Generates an initial array of fake data points for the mini charts
 const generateChartData = (length: number, max: number) => 
@@ -72,7 +73,12 @@ export default function DashboardView() {
   const nodesCount = servers.length;
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
       <header className="mb-8">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900 mb-1">Dashboard</h2>
         <p className="text-sm text-slate-500">Monitor your system status and active VPN nodes.</p>
@@ -188,7 +194,7 @@ export default function DashboardView() {
           <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Nodes</span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
