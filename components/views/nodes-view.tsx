@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Server, Activity, Globe, Zap, Shield, Network } from 'lucide-react';
+import { Server, Activity, Globe, Zap, Shield, Network, Radio } from 'lucide-react';
+import { AddNodeModal } from '../nodes/add-node-modal';
 
 interface VpnServer {
   id: number;
@@ -11,8 +12,11 @@ interface VpnServer {
   status: 'online' | 'offline' | 'maintenance';
   load_score: number;
   active_connections: number;
-  supports_wireguard: boolean;
-  supports_xray: boolean;
+  supports_openvpn: boolean | number;
+  supports_cisco: boolean | number;
+  supports_l2tp: boolean | number;
+  supports_wireguard: boolean | number;
+  supports_xray: boolean | number;
   location?: string;
 }
 
@@ -20,12 +24,17 @@ export function NodesView() {
   const [servers, setServers] = useState<VpnServer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchServers = () => {
+    setLoading(true);
     fetch('/api/servers')
       .then(res => res.json())
       .then(setServers)
       .catch(() => {})
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchServers();
   }, []);
 
   return (
@@ -43,14 +52,17 @@ export function NodesView() {
           </h2>
           <p className="text-sm text-slate-500">Global server network status and performance.</p>
         </div>
-        <div className="flex gap-4">
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Total Nodes</p>
-            <p className="text-xl font-bold text-slate-900">{servers.length}</p>
-          </div>
-          <div className="text-right border-l pl-4 border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Online</p>
-            <p className="text-xl font-bold text-green-600">{servers.filter(s => s.status === 'online').length}</p>
+        <div className="flex items-center gap-6">
+          <AddNodeModal onSuccess={fetchServers} />
+          <div className="flex gap-4 border-l pl-6 border-slate-100">
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Total Nodes</p>
+              <p className="text-xl font-bold text-slate-900">{servers.length}</p>
+            </div>
+            <div className="text-right border-l pl-4 border-slate-100">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Online</p>
+              <p className="text-xl font-bold text-green-600">{servers.filter(s => s.status === 'online').length}</p>
+            </div>
           </div>
         </div>
       </header>
@@ -125,19 +137,31 @@ export function NodesView() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-1.5">
-                        {server.supports_wireguard && (
+                        {!!server.supports_wireguard && (
                           <span className="p-1.5 bg-blue-50 text-blue-500 rounded-lg" title="WireGuard Supported">
                             <Shield size={14} />
                           </span>
                         )}
-                        {server.supports_xray && (
+                        {!!server.supports_xray && (
                           <span className="p-1.5 bg-purple-50 text-purple-500 rounded-lg" title="X-Ray Supported">
                              <Network size={14} />
                           </span>
                         )}
-                        <span className="p-1.5 bg-orange-50 text-orange-500 rounded-lg" title="OpenVPN Supported">
-                          <Zap size={14} />
-                        </span>
+                        {!!server.supports_openvpn && (
+                          <span className="p-1.5 bg-orange-50 text-orange-500 rounded-lg" title="OpenVPN Supported">
+                            <Zap size={14} />
+                          </span>
+                        )}
+                        {!!server.supports_cisco && (
+                          <span className="p-1.5 bg-indigo-50 text-indigo-500 rounded-lg" title="Cisco AnyConnect Supported">
+                            <Shield size={14} />
+                          </span>
+                        )}
+                        {!!server.supports_l2tp && (
+                          <span className="p-1.5 bg-slate-50 text-slate-500 rounded-lg" title="L2TP/IPsec Supported">
+                            <Radio size={14} />
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>

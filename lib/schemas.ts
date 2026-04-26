@@ -17,6 +17,20 @@ export const UserSchema = z.object({
   main_protocol: z.string().optional().nullable(),
 });
 
+export const ServerSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  ip_address: z.string().min(1, 'IP Address is required'),
+  domain: z.string().optional().nullable(),
+  ports: z.string().default('1194, 443'),
+  protocol: z.enum(['udp', 'tcp']).default('udp'),
+  supports_openvpn: z.boolean().default(true),
+  supports_cisco: z.boolean().default(false),
+  supports_l2tp: z.boolean().default(false),
+  supports_wireguard: z.boolean().default(false),
+  supports_xray: z.boolean().default(false),
+});
+
 export type UserFormData = z.infer<typeof UserSchema>;
+export type ServerFormData = z.infer<typeof ServerSchema>;
 
 export const UpdateUserSchema = UserSchema.partial();

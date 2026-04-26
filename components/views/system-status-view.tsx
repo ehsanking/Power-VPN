@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { SystemMetrics } from '../dashboard/system-metrics';
 
+import { HardDrive, Signal, AlertTriangle } from 'lucide-react';
+
 const generateChartData = (length: number, max: number) => 
   Array.from({ length }).map(() => ({ value: Math.floor(Math.random() * max) }));
 
@@ -27,11 +29,38 @@ export default function SystemStatusView() {
 
       <SystemMetrics cpuData={cpuData} ramData={ramData} />
 
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Server Health Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-medium">Uptime: 99.99%</div>
-            <div className="p-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-medium">Internal Core: Running</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <Signal size={20} />
+             </div>
+             <h3 className="font-bold text-slate-900">Uptime</h3>
+          </div>
+          <p className="text-3xl font-black text-slate-800 tracking-tight">99.99<span className="text-lg text-slate-400 font-medium">%</span></p>
+          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1">High Availability</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <HardDrive size={20} />
+             </div>
+             <h3 className="font-bold text-slate-900">Disk Status</h3>
+          </div>
+          <p className="text-3xl font-black text-slate-800 tracking-tight">Optimal</p>
+          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">I/O Performance normalized</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+             <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+                <AlertTriangle size={20} />
+             </div>
+             <h3 className="font-bold text-slate-900">Health Alerts</h3>
+          </div>
+          <p className="text-3xl font-black text-slate-800 tracking-tight">0</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">No critical issues</p>
         </div>
       </div>
     </div>

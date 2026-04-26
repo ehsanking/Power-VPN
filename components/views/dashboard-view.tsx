@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, HardDrive, AlertCircle, Signal } from 'lucide-react';
 import { motion } from 'motion/react';
 
 // Generates an initial array of fake data points for the mini charts
@@ -194,6 +194,97 @@ export default function DashboardView() {
           <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Nodes</span>
         </div>
       </div>
+
+      {/* Server Health Detailed Section */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30 flex justify-between items-center">
+          <h3 className="text-sm font-bold text-slate-800 tracking-tight uppercase tracking-[0.1em]">Server Health Registry</h3>
+          <div className="flex gap-4">
+             <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optimal</span>
+             </div>
+             <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Warning</span>
+             </div>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50/30 border-b border-slate-100 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                <th className="px-6 py-3">Server Node</th>
+                <th className="px-6 py-3 text-center">Disk I/O</th>
+                <th className="px-6 py-3 text-center">Packet Loss</th>
+                <th className="px-6 py-3 text-center">Errors</th>
+                <th className="px-6 py-3 text-center">Connections</th>
+                <th className="px-6 py-3 text-right">Load</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {servers.length > 0 ? (
+                servers.map((server) => (
+                  <tr key={server.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          server.status === 'online' ? 'bg-blue-50 text-blue-500' : 'bg-slate-100 text-slate-400'
+                        }`}>
+                          <Signal size={16} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 tracking-tight">{server.name}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{server.ip_address}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1 text-slate-700 font-bold">
+                          <HardDrive size={14} className="text-slate-400" />
+                          <span>{server.disk_io || 0} <small className="text-[9px] font-medium text-slate-400">ops/s</small></span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                       <span className={`font-bold ${parseFloat(server.packet_loss) > 1 ? 'text-red-500' : 'text-slate-700'}`}>
+                         {server.packet_loss || 0}%
+                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="inline-flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                        <AlertCircle size={12} className={server.error_count > 0 ? 'text-orange-500' : 'text-slate-300'} />
+                        <span className={`font-bold ${server.error_count > 0 ? 'text-orange-600' : 'text-slate-400'}`}>{server.error_count || 0}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center font-bold text-slate-700">
+                      {server.active_connections || 0}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                       <div className="flex flex-col items-end gap-1">
+                          <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${server.load_score > 80 ? 'bg-red-500' : server.load_score > 50 ? 'bg-orange-400' : 'bg-emerald-500'}`}
+                              style={{ width: `${server.load_score || 0}%` }}
+                            />
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{server.load_score || 0}% Utilized</span>
+                       </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                   <td colSpan={6} className="px-6 py-12 text-center text-slate-300 text-xs font-bold uppercase tracking-widest">
+                      No server metrics discovered
+                   </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </motion.div>
   );
 }

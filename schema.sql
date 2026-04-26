@@ -70,6 +70,9 @@ CREATE TABLE IF NOT EXISTS vpn_servers (
     bandwidth_ingress INT DEFAULT 0,
     bandwidth_egress INT DEFAULT 0,
     latency_ms INT DEFAULT 0,
+    disk_io INT DEFAULT 0,
+    packet_loss FLOAT DEFAULT 0.0,
+    error_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AlertTriangle, Search, Filter, Download, Power, Trash2, Shield, User as UserIcon } from 'lucide-react';
+import { Search, Filter, Download, Power, Trash2, User as UserIcon } from 'lucide-react';
 import { formatTraffic } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -136,17 +136,31 @@ export function UserTable({ users, downloading, onDownload, onToggleStatus, onDe
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1 w-32">
-                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase">
-                          <span>{formatTraffic(user.traffic_total)}</span>
-                          <span>{user.traffic_limit_gb || '∞'} GB</span>
+                      <div className="flex flex-col gap-1.5 w-36">
+                        <div className="flex items-center justify-between text-[10px] font-bold tracking-tight">
+                          <span className="text-slate-600">{formatTraffic(user.traffic_total)}</span>
+                          <span className="text-slate-400">{user.traffic_limit_gb ? `${user.traffic_limit_gb} GB` : 'UNLIMITED'}</span>
                         </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(100, (((user.traffic_total || 0) / 1073741824) / (user.traffic_limit_gb || 100)) * 100)}%` }}
-                            className={`h-full ${((user.traffic_total || 0) / 1073741824) / (user.traffic_limit_gb || 100) > 0.9 ? 'bg-red-500' : 'bg-blue-500'}`} 
-                          />
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden relative group/progress">
+                          {user.traffic_limit_gb ? (
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(100, (((user.traffic_total || 0) / 1073741824) / user.traffic_limit_gb) * 100)}%` }}
+                              className={`h-full relative z-10 ${
+                                ((user.traffic_total || 0) / 1073741824) / user.traffic_limit_gb > 0.9 
+                                  ? 'bg-gradient-to-r from-red-500 to-rose-600' 
+                                  : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                              }`} 
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-slate-200/50 flex transition-all">
+                              <motion.div 
+                                animate={{ x: ['-100%', '100%'] }}
+                                transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+                                className="h-full w-1/2 bg-gradient-to-r from-transparent via-slate-300 to-transparent"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
