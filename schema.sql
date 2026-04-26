@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS vpn_inbounds (
     name VARCHAR(255) NOT NULL,
     protocol VARCHAR(50) NOT NULL,
     port INT NOT NULL,
+    server_address VARCHAR(255) NOT NULL,
     remark TEXT,
     status VARCHAR(50) DEFAULT 'active',
     -- OpenVPN specific
