@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { UserSchema, UserFormData } from '@/lib/schemas';
 import { fetchApi } from '@/lib/api-client';
 import { toast } from 'sonner';
-import { X, UserPlus, Loader2, Network } from 'lucide-react';
+import { X, UserPlus, Loader2, Network, Shield, Key, Calendar, Database, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Props {
@@ -35,7 +35,6 @@ export function AddUserModal({ onSuccess }: Props) {
     }
   }, [isOpen]);
 
-  // Address Defect 40: Shared Zod Schema validation
   const {
     register,
     handleSubmit,
@@ -48,7 +47,7 @@ export function AddUserModal({ onSuccess }: Props) {
     defaultValues: {
       role: 'user',
       status: 'active',
-      traffic_limit_gb: 0,
+      traffic_limit_gb: 10,
       max_connections: 1,
       inboundIds: []
     }
@@ -74,7 +73,7 @@ export function AddUserModal({ onSuccess }: Props) {
     if (result.error) {
       toast.error(result.error.message);
     } else {
-      toast.success('User created successfully');
+      toast.success('User account provisioned');
       setIsOpen(false);
       reset();
       onSuccess();
@@ -86,10 +85,10 @@ export function AddUserModal({ onSuccess }: Props) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-200"
+        className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold shadow-lg shadow-slate-200 active:scale-95"
       >
-        <UserPlus size={20} />
-        Add User
+        <UserPlus size={18} />
+        Provision Account
       </button>
 
       <AnimatePresence>
@@ -100,200 +99,184 @@ export function AddUserModal({ onSuccess }: Props) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm overflow-y-auto"
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
             
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto"
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900 border-l-4 border-blue-500 pl-4">Create New User</h3>
+              <div className="bg-slate-50 px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Provision V-Stack User</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Identity & Access Management</p>
+                </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-white border border-transparent hover:border-slate-100 transition-all"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                  <input
-                    {...register('username')}
-                    type="text"
-                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:outline-none transition-all ${
-                      errors.username ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-blue-100'
-                    }`}
-                    placeholder="e.g. johndoe"
-                  />
-                  {errors.username && (
-                    <p className="mt-1 text-xs text-red-500">{errors.username.message}</p>
-                  )}
+              <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                        <Shield size={12} className="text-blue-500" />
+                        Identity Name
+                      </label>
+                      <input
+                        {...register('username')}
+                        type="text"
+                        className={`w-full px-4 py-2.5 rounded-xl border font-bold text-sm focus:ring-4 transition-all ${
+                          errors.username ? 'border-red-200 bg-red-50 focus:ring-red-50 text-red-900' : 'border-slate-100 bg-slate-50 focus:ring-blue-50 focus:border-blue-200'
+                        }`}
+                        placeholder="Username"
+                      />
+                      {errors.username && <p className="mt-1 text-[10px] font-bold text-red-500 uppercase">{errors.username.message}</p>}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                        <Key size={12} className="text-orange-500" />
+                        Secure Key
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          {...register('password')}
+                          type="text"
+                          className={`w-full px-4 py-2.5 rounded-xl border font-mono text-xs font-bold focus:ring-4 transition-all ${
+                            errors.password ? 'border-red-200 bg-red-50 focus:ring-red-50 text-red-900' : 'border-slate-100 bg-slate-50 focus:ring-blue-50 focus:border-blue-200'
+                          }`}
+                          placeholder="Password"
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setValue('password', Math.random().toString(36).slice(-10).toUpperCase())}
+                          className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold uppercase text-[10px] hover:bg-slate-800 transition-all active:scale-95"
+                        >
+                          Auto
+                        </button>
+                      </div>
+                      {errors.password && <p className="mt-1 text-[10px] font-bold text-red-500 uppercase">{errors.password.message}</p>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Stack Status</label>
+                        <select
+                          {...register('status')}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-100 bg-slate-50 font-bold text-sm focus:ring-4 focus:ring-blue-50 transition-all appearance-none"
+                        >
+                          <option value="active">Active</option>
+                          <option value="disabled">Disabled</option>
+                          <option value="suspended">Suspended</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Identity Role</label>
+                        <select
+                          {...register('role')}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-100 bg-slate-50 font-bold text-sm focus:ring-4 focus:ring-blue-50 transition-all appearance-none"
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                          <option value="reseller">Reseller</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                        <Calendar size={12} className="text-purple-500" />
+                        Stack Expiry
+                      </label>
+                      <input
+                        {...register('expires_at')}
+                        type="datetime-local"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-100 bg-slate-50 font-bold text-sm focus:ring-4 focus:ring-blue-50 transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                  <div className="flex gap-2">
-                    <input
-                      {...register('password')}
-                      type="text"
-                      className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:outline-none transition-all ${
-                        errors.password ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-blue-100'
-                      }`}
-                      placeholder="Min 6 characters"
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => setValue('password', Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-3).toUpperCase())}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap text-sm border border-gray-200"
-                    >
-                      Generate
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select
-                      {...register('status')}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all bg-white"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="suspended">Suspended</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <select
-                      {...register('role')}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all bg-white"
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                      <option value="reseller">Reseller</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Traffic Limit (GB)</label>
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row gap-6">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                      <Database size={12} className="text-emerald-500" />
+                      Traffic Quota (GB)
+                    </label>
                     <input
                       {...register('traffic_limit_gb', { valueAsNumber: true })}
                       type="number"
-                      className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:outline-none transition-all border-gray-200 focus:ring-blue-100"
-                      placeholder="0 for unlimited"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-100 bg-white font-bold text-sm focus:ring-4 focus:ring-emerald-50 transition-all"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Max IPs/Connections</label>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                      <Activity size={12} className="text-pink-500" />
+                      IP Constraints
+                    </label>
                     <input
                       {...register('max_connections', { valueAsNumber: true })}
                       type="number"
-                      className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:outline-none transition-all border-gray-200 focus:ring-blue-100"
-                      placeholder="1"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-100 bg-white font-bold text-sm focus:ring-4 focus:ring-pink-50 transition-all"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date (Optional)</label>
-                  <input
-                    {...register('expires_at')}
-                    type="datetime-local"
-                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:outline-none transition-all border-gray-200 focus:ring-blue-100"
-                  />
+                <div className="space-y-4">
+                   <label className="text-[10px] font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                      <Network size={14} className="text-blue-500" />
+                      Inbound Asset Assignments
+                   </label>
+                   {inbounds.length > 0 ? (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {inbounds.map(inbound => (
+                          <label key={inbound.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                            selectedInbounds.includes(inbound.id) ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-500/10' : 'bg-white border-slate-100 hover:border-slate-200'
+                          }`}>
+                            <input 
+                              type="checkbox" 
+                              className="hidden"
+                              checked={selectedInbounds.includes(inbound.id)}
+                              onChange={() => toggleInbound(inbound.id)}
+                            />
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                              selectedInbounds.includes(inbound.id) ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-200'
+                            }`}>
+                              {selectedInbounds.includes(inbound.id) && <div className="w-1.5 h-1.5 rounded-full bg-white transition-all transform scale-100" />}
+                            </div>
+                            <span className="text-xs font-bold text-slate-700 tracking-tight">{inbound.name}</span>
+                          </label>
+                        ))}
+                     </div>
+                   ) : (
+                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed text-center">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No active inbounds found</p>
+                     </div>
+                   )}
                 </div>
 
-                <div className="pt-2 border-t border-gray-100">
-                  <label className="block text-sm font-medium text-gray-900 mb-2">Advanced Configs (Optional)</label>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Main Protocol</label>
-                      <select
-                        {...register('main_protocol')}
-                        className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all bg-white"
-                      >
-                        <option value="">Any</option>
-                        <option value="vless">VLESS (Xray)</option>
-                        <option value="vmess">VMess (Xray)</option>
-                        <option value="trojan">Trojan</option>
-                        <option value="wireguard">WireGuard</option>
-                        <option value="cisco">Cisco AnyConnect</option>
-                        <option value="openvpn">OpenVPN</option>
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Xray UUID</label>
-                        <div className="flex gap-1">
-                          <input
-                            {...register('xray_uuid')}
-                            type="text"
-                            className="w-full px-3 py-1.5 text-sm rounded-lg border focus:ring-2 focus:outline-none transition-all border-gray-200 focus:ring-blue-100"
-                            placeholder="Auto-generate if empty"
-                          />
-                          <button 
-                            type="button" 
-                            onClick={() => setValue('xray_uuid', crypto.randomUUID())}
-                            className="px-2 text-xs bg-gray-100 rounded-lg hover:bg-gray-200"
-                          >Gen</button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Cisco/L2TP Password</label>
-                        <input
-                          {...register('cisco_password')}
-                          type="text"
-                          className="w-full px-3 py-1.5 text-sm rounded-lg border focus:ring-2 focus:outline-none transition-all border-gray-200 focus:ring-blue-100"
-                          placeholder="Uses main pass if empty"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {inbounds.length > 0 && (
-                  <div className="pt-2 border-t border-gray-100">
-                    <label className="block text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                       <Network size={16} className="text-blue-500" />
-                       Assign Inbounds
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
-                      {inbounds.map(inbound => (
-                        <label key={inbound.id} className="flex items-center gap-2 p-2 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="rounded text-blue-600 focus:ring-blue-500"
-                            checked={selectedInbounds.includes(inbound.id)}
-                            onChange={() => toggleInbound(inbound.id)}
-                          />
-                          <span className="text-sm font-medium text-gray-700">{inbound.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-4 border-t border-gray-100">
+                <div className="pt-4">
                   <button
                     disabled={isSubmitting}
                     type="submit"
-                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+                    className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all shadow-xl shadow-blue-500/20 active:scale-[0.98] flex items-center justify-center gap-3"
                   >
                     {isSubmitting ? (
                       <Loader2 className="animate-spin" size={20} />
                     ) : (
-                      'Create User Account'
+                      <>
+                        <Shield size={20} />
+                        Confirm Provisioning
+                      </>
                     )}
                   </button>
                 </div>
