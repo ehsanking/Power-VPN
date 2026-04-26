@@ -2,16 +2,18 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Users, Activity, Settings as SettingsIcon, LayoutDashboard, Menu, X, Network } from 'lucide-react';
+import { Shield, Users, Activity, Settings as SettingsIcon, LayoutDashboard, Menu, X, Network, Server, UserCheck } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import DashboardView from '@/components/views/dashboard-view';
 import { UsersView } from '@/components/views/users-view';
 import SessionsView from '@/components/views/sessions-view';
 import SettingsView from '@/components/views/settings-view';
 import InboundsView from '@/components/views/inbounds-view';
+import { RepresentativesView } from '@/components/views/representatives-view';
+import { NodesView } from '@/components/views/nodes-view';
 import { Toaster } from 'sonner';
 
-type ViewType = 'dashboard' | 'users' | 'inbounds' | 'sessions' | 'settings';
+type ViewType = 'dashboard' | 'users' | 'inbounds' | 'sessions' | 'settings' | 'representatives' | 'nodes';
 
 export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
@@ -19,6 +21,8 @@ export default function Home() {
 
   const navigation = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'representatives', label: 'Representatives', icon: UserCheck },
+    { id: 'nodes', label: 'Nodes', icon: Server },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'inbounds', label: 'Inbounds', icon: Network },
     { id: 'sessions', label: 'Sessions', icon: Activity },
@@ -29,6 +33,10 @@ export default function Home() {
     switch (activeView) {
       case 'dashboard':
         return <DashboardView />;
+      case 'representatives':
+        return <RepresentativesView />;
+      case 'nodes':
+        return <NodesView />;
       case 'users':
         return <UsersView />;
       case 'inbounds':
