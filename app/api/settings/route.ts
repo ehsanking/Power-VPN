@@ -55,8 +55,8 @@ export async function POST(req: Request) {
       }
       
       return query(
-        'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
-        [key, String(value), String(value)]
+        'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON CONFLICT(`key`) DO UPDATE SET `value` = excluded.`value`',
+        [key, String(value)]
       );
     });
     await Promise.all(promises);

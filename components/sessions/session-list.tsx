@@ -17,9 +17,10 @@ interface SessionListProps {
   sessions: Session[];
   loading: boolean;
   now: number;
+  onKill: (id: number) => void;
 }
 
-export function SessionList({ sessions, loading, now }: SessionListProps) {
+export function SessionList({ sessions, loading, now, onKill }: SessionListProps) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden border-t-2 border-t-orange-600">
       <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
@@ -32,7 +33,7 @@ export function SessionList({ sessions, loading, now }: SessionListProps) {
       ) : sessions.length > 0 ? (
         <div className="divide-y divide-slate-100">
           {sessions.map((session) => (
-            <SessionItem key={session.id} session={session} now={now} />
+            <SessionItem key={session.id} session={session} now={now} onKill={onKill} />
           ))}
         </div>
       ) : (

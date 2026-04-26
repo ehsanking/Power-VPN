@@ -187,7 +187,22 @@ export default function InboundsView() {
                     <td className="px-6 py-4 font-mono">{inbound.port}</td>
                     <td className="px-6 py-4 text-gray-500">{inbound.remark || '-'}</td>
                     <td className="px-6 py-4 text-right">
-                      {/* Action buttons could go here */}
+                      <button 
+                        onClick={async () => {
+                          if (confirm(`Delete inbound ${inbound.name}?`)) {
+                            try {
+                              const res = await fetch(`/api/inbounds/${inbound.id}`, { method: 'DELETE' });
+                              if (res.ok) fetchInbounds();
+                              else toast.error('Failed to delete inbound');
+                            } catch {
+                              toast.error('Failed to delete inbound');
+                            }
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}

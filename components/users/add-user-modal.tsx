@@ -214,6 +214,54 @@ export function AddUserModal({ onSuccess }: Props) {
                   />
                 </div>
 
+                <div className="pt-2 border-t border-gray-100">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Advanced Configs (Optional)</label>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Main Protocol</label>
+                      <select
+                        {...register('main_protocol')}
+                        className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all bg-white"
+                      >
+                        <option value="">Any</option>
+                        <option value="vless">VLESS (Xray)</option>
+                        <option value="vmess">VMess (Xray)</option>
+                        <option value="trojan">Trojan</option>
+                        <option value="wireguard">WireGuard</option>
+                        <option value="cisco">Cisco AnyConnect</option>
+                        <option value="openvpn">OpenVPN</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Xray UUID</label>
+                        <div className="flex gap-1">
+                          <input
+                            {...register('xray_uuid')}
+                            type="text"
+                            className="w-full px-3 py-1.5 text-sm rounded-lg border focus:ring-2 focus:outline-none transition-all border-gray-200 focus:ring-blue-100"
+                            placeholder="Auto-generate if empty"
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setValue('xray_uuid', crypto.randomUUID())}
+                            className="px-2 text-xs bg-gray-100 rounded-lg hover:bg-gray-200"
+                          >Gen</button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Cisco/L2TP Password</label>
+                        <input
+                          {...register('cisco_password')}
+                          type="text"
+                          className="w-full px-3 py-1.5 text-sm rounded-lg border focus:ring-2 focus:outline-none transition-all border-gray-200 focus:ring-blue-100"
+                          placeholder="Uses main pass if empty"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {inbounds.length > 0 && (
                   <div className="pt-2 border-t border-gray-100">
                     <label className="block text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">

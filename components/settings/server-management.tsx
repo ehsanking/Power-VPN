@@ -7,7 +7,10 @@ import { motion } from 'motion/react';
 export function ServerManagement() {
   const [servers, setServers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newServer, setNewServer] = useState({ name: '', ip_address: '', protocol: 'udp', port: 1194 });
+  const [newServer, setNewServer] = useState({ 
+    name: '', ip_address: '', protocol: 'udp', port: 1194,
+    supports_openvpn: true, supports_cisco: false, supports_l2tp: false, supports_wireguard: false, supports_xray: false
+  });
 
   const fetchServers = async () => {
     try {
@@ -38,10 +41,18 @@ export function ServerManagement() {
           name: newServer.name,
           ip_address: newServer.ip_address,
           protocol: newServer.protocol,
-          ports: [newServer.port]
+          ports: [newServer.port],
+          supports_openvpn: newServer.supports_openvpn,
+          supports_cisco: newServer.supports_cisco,
+          supports_l2tp: newServer.supports_l2tp,
+          supports_wireguard: newServer.supports_wireguard,
+          supports_xray: newServer.supports_xray
         })
       });
-      setNewServer({ name: '', ip_address: '', protocol: 'udp', port: 1194 });
+      setNewServer({ 
+        name: '', ip_address: '', protocol: 'udp', port: 1194,
+        supports_openvpn: true, supports_cisco: false, supports_l2tp: false, supports_wireguard: false, supports_xray: false
+      });
       fetchServers();
     } catch (e: any) {
       alert("Failed to add server: " + e.message);
@@ -74,7 +85,14 @@ export function ServerManagement() {
                 <div key={server.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                     <div>
                         <h4 className="font-bold text-slate-800 text-sm">{server.name}</h4>
-                        <p className="text-xs text-slate-500 font-mono mt-1">{server.ip_address} • {server.protocol.toUpperCase()} • Ports: {JSON.parse(server.ports || '[]').join(', ')}</p>
+                        <p className="text-xs text-slate-500 font-mono mt-1 mb-2">{server.ip_address} • {server.protocol.toUpperCase()} • Ports: {JSON.parse(server.ports || '[]').join(', ')}</p>
+                        <div className="flex gap-1 flex-wrap">
+                          {server.supports_openvpn === 1 && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-orange-100 text-orange-700">OVPN</span>}
+                          {server.supports_cisco === 1 && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-blue-100 text-blue-700">Cisco</span>}
+                          {server.supports_l2tp === 1 && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-purple-100 text-purple-700">L2TP</span>}
+                          {server.supports_wireguard === 1 && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-red-100 text-red-700">WG</span>}
+                          {server.supports_xray === 1 && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-pink-100 text-pink-700">Xray</span>}
+                        </div>
                     </div>
                     <button 
                         onClick={() => handleDelete(server.id)}
@@ -88,7 +106,8 @@ export function ServerManagement() {
 
         <div className="border-t border-slate-100 pt-6">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Provision New Node</h4>
-            <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-4 items-end">
+            <form onSubmit={handleAdd} className="flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1 w-full">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Display Name</label>
                     <input 
@@ -133,12 +152,38 @@ export function ServerManagement() {
                         placeholder="1194"
                     />
                 </div>
+              </div>
+              <div className="flex flex-wrap gap-4 text-xs font-medium text-slate-600 border border-slate-100 rounded-lg p-3 bg-slate-50">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest w-full block">Supported Protocols</span>
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-900 transition-colors">
+                  <input type="checkbox" checked={newServer.supports_openvpn} onChange={e => setNewServer({...newServer, supports_openvpn: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500" />
+                  OpenVPN
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-900 transition-colors">
+                  <input type="checkbox" checked={newServer.supports_cisco} onChange={e => setNewServer({...newServer, supports_cisco: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500" />
+                  Cisco AnyConnect
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-900 transition-colors">
+                  <input type="checkbox" checked={newServer.supports_l2tp} onChange={e => setNewServer({...newServer, supports_l2tp: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500" />
+                  L2TP/IPsec
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-900 transition-colors">
+                  <input type="checkbox" checked={newServer.supports_wireguard} onChange={e => setNewServer({...newServer, supports_wireguard: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500" />
+                  WireGuard
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-900 transition-colors">
+                  <input type="checkbox" checked={newServer.supports_xray} onChange={e => setNewServer({...newServer, supports_xray: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500" />
+                  Xray Core
+                </label>
+              </div>
+              <div className="flex justify-end mt-2">
                 <button 
                   type="submit"
-                  className="bg-slate-900 text-white p-2.5 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+                  className="bg-slate-900 text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-slate-800 transition-colors shrink-0 flex items-center gap-2"
                 >
-                    <Plus size={18} />
+                    <Plus size={16} /> Add Node
                 </button>
+              </div>
             </form>
         </div>
       </div>

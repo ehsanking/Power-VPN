@@ -11,13 +11,19 @@ const UserQuerySchema = z.object({
 
 const CreateUserSchema = z.object({
   username: z.string().min(3),
-  password: z.string().min(6),
+  password: z.string().min(6).optional().nullable(),
   role: z.enum(['admin', 'user', 'reseller']).default('user'),
   status: z.enum(['active', 'inactive', 'suspended']).default('active'),
-  traffic_limit_gb: z.number().min(0).default(0),
+  traffic_limit_gb: z.number().min(0).default(10),
   max_connections: z.number().min(1).default(1),
   expires_at: z.string().optional().nullable(),
   inboundIds: z.array(z.number()).optional(),
+  cisco_password: z.string().optional().nullable(),
+  l2tp_password: z.string().optional().nullable(),
+  wg_pubkey: z.string().optional().nullable(),
+  xray_uuid: z.string().optional().nullable(),
+  port: z.number().optional().nullable(),
+  main_protocol: z.string().optional().nullable(),
 });
 
 export async function GET(request: Request) {
@@ -38,7 +44,7 @@ export async function GET(request: Request) {
     const { page, limit, search } = validatedQuery.data;
     const offset = (page - 1) * limit;
 
-    let sql = 'SELECT id, username, role, created_at FROM vpn_users';
+    let sql = 'SELECT * FROM vpn_users';
     let countSql = 'SELECT COUNT(*) as total FROM vpn_users';
     const params: any[] = [];
 
@@ -90,7 +96,10 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const { username, password, role, status, traffic_limit_gb, max_connections, expires_at, inboundIds } = validatedData.data;
+    const { 
+      username, password, role, status, traffic_limit_gb, max_connections, expires_at, inboundIds,
+      cisco_password, l2tp_password, wg_pubkey, xray_uuid, port, main_protocol
+    } = validatedData.data;
 
     // Convert empty string from date input to null
     const finalExpiresAt = expires_at ? new Date(expires_at) : null;
@@ -98,9 +107,9 @@ export async function POST(request: Request) {
     // In a real app, hash password here
     const [result]: any = await pool.execute(
       `INSERT INTO vpn_users 
-       (username, password_hash, role, status, traffic_limit_gb, max_connections, expires_at, created_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [username, password, role, status, traffic_limit_gb, max_connections, finalExpiresAt]
+       (username, password_hash, role, status, traffic_limit_gb, max_connections, expires_at, created_at, cisco_password, l2tp_password, wg_pubkey, xray_uuid, port, main_protocol) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)`,
+      [username, password || null, role, status, traffic_limit_gb, max_connections, finalExpiresAt, cisco_password || null, l2tp_password || null, wg_pubkey || null, xray_uuid || null, port || null, main_protocol || null]
     );
 
     const userId = result.insertId;

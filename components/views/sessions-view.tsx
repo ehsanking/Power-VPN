@@ -77,6 +77,20 @@ export default function SessionsView() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleKill = async (id: number) => {
+    try {
+      const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSessions(prev => prev.map(s => s.id === id ? { ...s, status: 'disconnected' } as Session : s));
+      } else {
+        const error = await res.json();
+        console.error('Failed to kill session:', error);
+      }
+    } catch (err) {
+      console.error('Failed to kill session:', err);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -115,7 +129,7 @@ export default function SessionsView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3 space-y-4">
-          <SessionList sessions={sessions} loading={loading} now={now} />
+          <SessionList sessions={sessions} loading={loading} now={now} onKill={handleKill} />
         </div>
 
         <div className="space-y-6">

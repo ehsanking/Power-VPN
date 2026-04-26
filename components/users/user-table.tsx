@@ -57,7 +57,11 @@ export function UserTable({ users, downloading, onDownload, onToggleStatus, onDe
               users.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50/80 transition-colors group">
                   <td className="px-6 py-4">
-                    <span className="font-bold text-slate-900 tracking-tight">{user.username}</span>
+                    <div className="flex items-center gap-2">
+                       <span className="font-bold text-slate-900 tracking-tight">{user.username}</span>
+                       {(user as any).role === 'admin' && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-blue-100 text-blue-700">Admin</span>}
+                       {(user as any).role === 'reseller' && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-purple-100 text-purple-700">Reseller</span>}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${

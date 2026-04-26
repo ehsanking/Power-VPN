@@ -4,10 +4,18 @@ import pool from '@/lib/db';
 import { auditLog } from '@/lib/audit-logger';
 
 const UpdateUserSchema = z.object({
-  role: z.enum(['admin', 'user', 'reseller']).optional(),
-  status: z.enum(['active', 'disabled']).optional(),
-}).refine(data => data.role || data.status, {
-  message: "At least one field must be provided for update"
+  role: z.enum(['admin', 'user', 'reseller']).optional().nullable(),
+  status: z.enum(['active', 'disabled', 'suspended', 'inactive']).optional().nullable(),
+  traffic_limit_gb: z.number().optional().nullable(),
+  max_connections: z.number().optional().nullable(),
+  expires_at: z.string().optional().nullable(),
+  cisco_password: z.string().optional().nullable(),
+  l2tp_password: z.string().optional().nullable(),
+  wg_pubkey: z.string().optional().nullable(),
+  xray_uuid: z.string().optional().nullable(),
+  port: z.number().optional().nullable(),
+  main_protocol: z.string().optional().nullable(),
+  password: z.string().optional().nullable(),
 });
 
 export async function GET(
@@ -17,7 +25,7 @@ export async function GET(
   try {
     const { id } = await params;
     const [rows]: any = await pool.execute(
-      'SELECT id, username, role, status, created_at FROM vpn_users WHERE id = ?',
+      'SELECT * FROM vpn_users WHERE id = ?',
       [id]
     );
 
@@ -64,13 +72,31 @@ export async function PATCH(
     const updates: string[] = [];
     const values: any[] = [];
 
-    if (validatedData.data.role) {
-      updates.push('role = ?');
-      values.push(validatedData.data.role);
+    const fields = [
+      'role', 'status', 'traffic_limit_gb', 'max_connections',
+      'cisco_password', 'l2tp_password', 'wg_pubkey', 'xray_uuid',
+      'port', 'main_protocol'
+    ];
+
+    for (const field of fields) {
+      if ((validatedData.data as any)[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        values.push((validatedData.data as any)[field]);
+      }
     }
-    if (validatedData.data.status) {
-      updates.push('status = ?');
-      values.push(validatedData.data.status);
+
+    if (validatedData.data.expires_at !== undefined) {
+      updates.push('expires_at = ?');
+      values.push(validatedData.data.expires_at ? new Date(validatedData.data.expires_at) : null);
+    }
+    
+    if (validatedData.data.password) {
+      updates.push('password_hash = ?');
+      values.push(validatedData.data.password);
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ message: 'No updates provided' });
     }
 
     values.push(id);
